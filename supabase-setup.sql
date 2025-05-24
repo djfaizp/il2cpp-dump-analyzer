@@ -29,12 +29,12 @@ AS $$
 BEGIN
   RETURN QUERY
   SELECT
-    id,
-    content,
-    metadata,
-    1 - (embedding <=> query_embedding) AS similarity
+    il2cpp_documents.id,
+    il2cpp_documents.content,
+    il2cpp_documents.metadata,
+    1 - (il2cpp_documents.embedding <=> query_embedding) AS similarity
   FROM il2cpp_documents
-  WHERE 1 - (embedding <=> query_embedding) > match_threshold
+  WHERE 1 - (il2cpp_documents.embedding <=> query_embedding) > match_threshold
   ORDER BY similarity DESC
   LIMIT match_count;
 END;

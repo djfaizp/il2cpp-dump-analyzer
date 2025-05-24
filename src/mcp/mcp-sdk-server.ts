@@ -166,12 +166,12 @@ class Logger {
 export async function initializeServer(options: InitializationOptions = {}): Promise<void> {
   try {
     Logger.info('Starting MCP server initialization...');
-    
+
     // Store configuration
     const nodeEnv = process.env.NODE_ENV;
     const environment: 'development' | 'production' | 'test' =
       nodeEnv === 'development' || nodeEnv === 'test' ? nodeEnv : 'production';
-    
+
     serverConfig = {
       environment,
       enableCaching: true,
@@ -218,13 +218,13 @@ export async function initializeServer(options: InitializationOptions = {}): Pro
     // Index the dump file
     Logger.info('Indexing dump file...');
     vectorStore = await indexer.indexFile(dumpFilePath, progressCallback, serverConfig.forceReprocess);
-    
+
     progressCallback(100, 'Initialization complete');
     Logger.info('Indexing complete');
 
     // Mark as initialized
     isInitialized = true;
-    
+
     Logger.info('MCP server initialization completed successfully');
 
   } catch (error) {
@@ -319,7 +319,35 @@ function registerResources(server: McpServer): void {
   // Enhanced IL2CPP code search resource
   server.resource(
     "il2cpp-code",
-    new ResourceTemplate("il2cpp://{query}", { list: undefined }),
+    new ResourceTemplate("il2cpp://{query}", {
+      list: async () => {
+        // Return some example resources that clients can discover
+        return {
+          resources: [
+            {
+              uri: "il2cpp://MonoBehaviour",
+              name: "MonoBehaviour Classes",
+              description: "Search for MonoBehaviour classes"
+            },
+            {
+              uri: "il2cpp://Player",
+              name: "Player Classes",
+              description: "Search for Player-related classes"
+            },
+            {
+              uri: "il2cpp://GameObject",
+              name: "GameObject Classes",
+              description: "Search for GameObject-related classes"
+            },
+            {
+              uri: "il2cpp://WildMapPokemon",
+              name: "WildMapPokemon Classes",
+              description: "Search for WildMapPokemon-related classes"
+            }
+          ]
+        };
+      }
+    }),
     async (uri, { query }) => {
       try {
         ensureInitialized();
@@ -732,16 +760,16 @@ function registerTools(server: McpServer): void {
 export async function startMcpStdioServer(): Promise<void> {
   try {
     Logger.info('Starting MCP server with stdio transport...');
-    
+
     ensureInitialized();
-    
+
     const server = createMcpServer();
     const transport = new StdioServerTransport();
-    
+
     await server.connect(transport);
-    
+
     Logger.info("MCP server started successfully with stdio transport");
-    
+
   } catch (error) {
     Logger.error('Failed to start stdio server:', error);
     throw new MCPServerError(
@@ -758,13 +786,13 @@ export async function startMcpStdioServer(): Promise<void> {
  * @param options HTTP server options
  */
 export async function startMcpHttpServer(
-  port: number, 
-  host: string, 
+  port: number,
+  host: string,
   options: HttpServerOptions = {}
 ): Promise<void> {
   try {
     Logger.info(`Starting MCP server with HTTP transport on ${host}:${port}...`);
-    
+
     ensureInitialized();
 
     const {
@@ -775,10 +803,10 @@ export async function startMcpHttpServer(
     } = options;
 
     const app = express();
-    
+
     // Middleware
     app.use(express.json({ limit: '10mb' }));
-    
+
     if (enableCors) {
       app.use((req, res, next) => {
         res.header('Access-Control-Allow-Origin', '*');
@@ -800,9 +828,9 @@ export async function startMcpHttpServer(
     }
 
     // Map to store transports by session ID with cleanup
-    const transports: { [sessionId: string]: { 
-      transport: StreamableHTTPServerTransport; 
-      lastActivity: number; 
+    const transports: { [sessionId: string]: {
+      transport: StreamableHTTPServerTransport;
+      lastActivity: number;
     } } = {};
 
     // Session cleanup interval
@@ -927,7 +955,7 @@ export async function startMcpHttpServer(
 
         const transportSession = transports[sessionId];
         transportSession.lastActivity = Date.now();
-        
+
         try {
           await transportSession.transport.handleRequest(req, res);
         } catch (transportError) {
@@ -1073,12 +1101,12 @@ export function getServerStatus(): {
  */
 export async function shutdown(): Promise<void> {
   Logger.info('Shutting down MCP server...');
-  
+
   // Reset state
   vectorStore = null;
   isInitialized = false;
   serverConfig = {};
-  
+
   Logger.info('MCP server shutdown complete');
 }
 

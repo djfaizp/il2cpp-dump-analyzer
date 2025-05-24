@@ -28,11 +28,11 @@ export class IL2CPPVectorStore {
 
     // Check if Supabase configuration is available
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_KEY;
+    const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
     const supabaseTable = process.env.SUPABASE_TABLE || 'il2cpp_documents';
 
-    // Temporarily force in-memory store for testing
-    this.useSupabase = true; // !!(supabaseUrl && supabaseKey);
+    // Use Supabase only if both URL and key are available
+    this.useSupabase = !!(supabaseUrl && supabaseKey);
 
     // Set up the path for storing document hashes
     this.hashesFilePath = path.resolve(process.cwd(), 'document-hashes.json');
