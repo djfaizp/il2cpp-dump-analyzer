@@ -1,14 +1,18 @@
 {
-  "name": "il2cpp-dump-analyzer",
-  "version": "0.1.0",
+  "name": "il2cpp-dump-analyzer-mcp",
+  "version": "0.1.2",
   "description": "Agentic RAG system for analyzing IL2CPP dump.cs files from Unity games",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "il2cpp-analyzer": "dist/index.js"
+    "il2cpp-dump-analyzer-mcp": "bin/il2cpp-mcp-stdio.js",
+    "il2cpp-analyzer": "dist/index.js",
+    "il2cpp-mcp": "bin/il2cpp-mcp.js",
+    "il2cpp-mcp-stdio": "bin/il2cpp-mcp-stdio.js"
   },
   "files": [
     "dist/**/*",
+    "bin/**/*",
     "!dist/**/test-*",
     "README.md",
     "LICENSE",

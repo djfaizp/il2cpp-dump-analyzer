@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "il2cpp-dump-analyzer": {
+      "command": "node",
+      "args": [
+        "dist/mcp/stdio-server.js",
+        "--log-level",
+        "info"
+      ],
+      "cwd": "C:\\Users\\modan\\Desktop\\Development\\agentic-rag",
+      "description": "IL2CPP Dump Analyzer MCP Server for Unity game analysis",
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}

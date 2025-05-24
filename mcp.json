@@ -1,0 +1,157 @@
+{
+  "mcpServers": {
+    "il2cpp-dump-analyzer": {
+      "command": "npx",
+      "args": [
+        "il2cpp-dump-analyzer-mcp"
+      ],
+      "cwd": ".",
+      "description": "IL2CPP Dump Analyzer MCP Server for Unity game analysis (uses .env file for configuration)",
+      "metadata": {
+        "name": "IL2CPP Dump Analyzer",
+        "version": "1.0.0",
+        "author": "IL2CPP Dump Analyzer Team",
+        "capabilities": [
+          "Unity IL2CPP dump analysis",
+          "MonoBehaviour discovery",
+          "Class hierarchy analysis",
+          "Method signature lookup",
+          "Enum value retrieval",
+          "Advanced filtering and search"
+        ],
+        "supportedGameEngines": ["Unity"],
+        "supportedLanguages": ["C#"],
+        "documentation": "A specialized RAG system for analyzing IL2CPP dump.cs files from Unity games",
+        "protocol": "MCP",
+        "features": {
+          "stdio_transport": true,
+          "http_transport": true,
+          "resource_templates": true,
+          "advanced_tools": true
+        }
+      },
+      "tools": [
+        {
+          "name": "search_code",
+          "description": "Search for code in the IL2CPP dump with advanced filtering capabilities",
+          "parameters": {
+            "query": {
+              "type": "string",
+              "description": "The search query to find relevant code",
+              "required": true
+            },
+            "filter_type": {
+              "type": "string",
+              "description": "Filter by entity type (class, method, enum, interface)",
+              "enum": ["class", "method", "enum", "interface"],
+              "required": false
+            },
+            "filter_namespace": {
+              "type": "string",
+              "description": "Filter by namespace (e.g., UnityEngine, System)",
+              "required": false
+            },
+            "filter_monobehaviour": {
+              "type": "boolean",
+              "description": "Filter to only MonoBehaviour classes",
+              "required": false
+            },
+            "top_k": {
+              "type": "number",
+              "description": "Number of results to return",
+              "default": 5,
+              "minimum": 1,
+              "maximum": 50,
+              "required": false
+            }
+          }
+        },
+        {
+          "name": "find_monobehaviours",
+          "description": "Find MonoBehaviour classes in the IL2CPP dump",
+          "parameters": {
+            "query": {
+              "type": "string",
+              "description": "Optional search query to filter MonoBehaviours (e.g., 'Player', 'Enemy', 'Controller')",
+              "required": false,
+              "default": ""
+            },
+            "top_k": {
+              "type": "number",
+              "description": "Number of results to return",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 100,
+              "required": false
+            }
+          }
+        },
+        {
+          "name": "find_class_hierarchy",
+          "description": "Find class hierarchy information including inheritance and methods",
+          "parameters": {
+            "class_name": {
+              "type": "string",
+              "description": "The name of the class to find hierarchy for",
+              "required": true
+            },
+            "include_methods": {
+              "type": "boolean",
+              "description": "Whether to include methods in the output",
+              "default": true,
+              "required": false
+            }
+          }
+        },
+        {
+          "name": "find_enum_values",
+          "description": "Find enum values and their definitions",
+          "parameters": {
+            "enum_name": {
+              "type": "string",
+              "description": "The name of the enum to find values for",
+              "required": true
+            }
+          }
+        }
+      ],
+      "resources": [
+        {
+          "uri": "il2cpp://{query}",
+          "name": "IL2CPP Code Search",
+          "description": "Retrieves code snippets matching the query from the IL2CPP dump",
+          "mimeType": "application/json",
+          "parameters": {
+            "query": {
+              "type": "string",
+              "description": "Search query for code retrieval",
+              "required": true
+            },
+            "top_k": {
+              "type": "number",
+              "description": "Number of results to return",
+              "default": 5,
+              "required": false
+            },
+            "filter_type": {
+              "type": "string",
+              "description": "Filter by entity type",
+              "enum": ["class", "method", "enum", "interface"],
+              "required": false
+            },
+            "filter_namespace": {
+              "type": "string",
+              "description": "Filter by namespace",
+              "required": false
+            },
+            "filter_monobehaviour": {
+              "type": "boolean",
+              "description": "Filter to only include MonoBehaviour classes",
+              "required": false
+            }
+          }
+        }
+      ]
+    }
+  }
+}

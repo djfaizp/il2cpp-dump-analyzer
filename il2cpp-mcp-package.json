@@ -1,5 +1,5 @@
 {
-  "name": "@il2cpp/dump-analyzer-mcp",
+  "name": "il2cpp/dump-analyzer-mcp",
   "version": "1.0.0",
   "description": "IL2CPP Dump Analyzer MCP Server for Unity game analysis",
   "main": "dist/index.js",
@@ -15,7 +15,7 @@
     "il2cpp-dump-analyzer": {
       "command": "npx",
       "args": [
-        "@il2cpp/dump-analyzer-mcp",
+        "il2cpp/dump-analyzer-mcp",
         "start"
       ],
       "description": "IL2CPP Dump Analyzer MCP Server for Unity game analysis"
@@ -29,8 +29,23 @@
     "rag",
     "augment"
   ],
-  "author": "Your Name",
+  "author": "Developer",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/djfaizp/il2cpp-dump-analyzer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/djfaizp/il2cpp-dump-analyzer/issues"
+  },
+  "homepage": "https://github.com/djfaizp/il2cpp-dump-analyzer#readme",
+  "files": [
+    "dist/**/*",
+    "bin/**/*",
+    "!dist/**/test-*",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@langchain/community": "^0.0.15",
     "@langchain/core": "^0.1.0",
