@@ -21,11 +21,12 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
-
+.kilocode/*
 # OS generated files
 .DS_Store
 .DS_Store?
 ._*
+dump.cs
 .Spotlight-V100
 .Trashes
 ehthumbs.db
