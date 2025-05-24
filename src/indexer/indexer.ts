@@ -4,6 +4,7 @@ import { EnhancedIL2CPPDumpParser } from '../parser/enhanced-il2cpp-parser';
 import { IL2CPPCodeChunker, CodeChunk } from '../embeddings/chunker';
 import { IL2CPPVectorStore } from '../embeddings/vector-store';
 import { IL2CPPClass, IL2CPPEnum, IL2CPPInterface, EnhancedParseResult } from '../parser/enhanced-types';
+import { HashManager } from '../utils/hash-manager';
 
 /**
  * Manages the indexing process for IL2CPP dump files
@@ -12,26 +13,52 @@ export class IL2CPPIndexer {
   private parser: EnhancedIL2CPPDumpParser;
   private chunker: IL2CPPCodeChunker;
   private vectorStore: IL2CPPVectorStore;
+  private hashManager: HashManager;
 
   constructor(
     private readonly chunkSize: number = 1000,
-    private readonly chunkOverlap: number = 200
+    private readonly chunkOverlap: number = 200,
+    private readonly model?: string,
+    hashFilePath?: string
   ) {
     this.parser = new EnhancedIL2CPPDumpParser();
     this.chunker = new IL2CPPCodeChunker(chunkSize, chunkOverlap);
-    this.vectorStore = new IL2CPPVectorStore();
+    this.vectorStore = new IL2CPPVectorStore(model);
+    this.hashManager = new HashManager(hashFilePath);
   }
 
   /**
    * Index an IL2CPP dump file
    * @param filePath Path to the dump.cs file
    * @param progressCallback Optional callback for progress updates
+   * @param forceReprocess Force reprocessing even if file was already processed
    * @returns The vector store with indexed content
    */
   public async indexFile(
     filePath: string,
-    progressCallback?: (progress: number, message: string) => void
+    progressCallback?: (progress: number, message: string) => void,
+    forceReprocess: boolean = false
   ): Promise<IL2CPPVectorStore> {
+    // Check if file was already processed (unless forced)
+    if (!forceReprocess && this.hashManager.isFileProcessed(filePath)) {
+      const hash = this.hashManager.getFileHash(filePath);
+      const fileName = path.basename(filePath);
+      if (progressCallback) {
+        progressCallback(100, `Skipping duplicate file: ${fileName} (hash: ${hash.substring(0, 8)}...)`);
+      }
+      console.log(`Skipping already processed file: ${fileName} (hash: ${hash.substring(0, 8)}...)`);
+      return this.vectorStore;
+    }
+
+    // Calculate and log file hash
+    const fileHash = this.hashManager.getFileHash(filePath);
+    const fileName = path.basename(filePath);
+    console.log(`Processing file: ${fileName} (hash: ${fileHash.substring(0, 8)}...)`);
+
+    if (progressCallback) {
+      progressCallback(5, `Processing file: ${fileName} (hash: ${fileHash.substring(0, 8)}...)`);
+    }
+
     // Load and parse the file
     await this.parser.loadFile(filePath);
 
@@ -136,10 +163,14 @@ export class IL2CPPIndexer {
     // Add chunks to vector store
     await this.vectorStore.addCodeChunks(chunks);
 
+    // Mark file as processed
+    this.hashManager.markFileAsProcessed(filePath);
+
     if (progressCallback) {
-      progressCallback(100, 'Indexing complete!');
+      progressCallback(100, `Indexing complete! File hash ${fileHash.substring(0, 8)}... saved to skip future duplicates.`);
     }
 
+    console.log(`File processed and hash saved: ${fileName} (${fileHash.substring(0, 8)}...)`);
     return this.vectorStore;
   }
 
@@ -165,5 +196,63 @@ export class IL2CPPIndexer {
    */
   public getVectorStore(): IL2CPPVectorStore {
     return this.vectorStore;
+  }
+
+  /**
+   * Get the hash manager instance
+   * @returns Hash manager instance
+   */
+  public getHashManager(): HashManager {
+    return this.hashManager;
+  }
+
+  /**
+   * Check if a file has been processed before
+   * @param filePath Path to the dump.cs file
+   * @returns true if file was already processed
+   */
+  public isFileProcessed(filePath: string): boolean {
+    return this.hashManager.isFileProcessed(filePath);
+  }
+
+  /**
+   * Get the hash of a file
+   * @param filePath Path to the dump.cs file
+   * @returns SHA-256 hash of the file
+   */
+  public getFileHash(filePath: string): string {
+    return this.hashManager.getFileHash(filePath);
+  }
+
+  /**
+   * Remove a file from the processed list (to allow reprocessing)
+   * @param filePath Path to the dump.cs file
+   * @returns true if hash was removed
+   */
+  public removeFileFromProcessed(filePath: string): boolean {
+    return this.hashManager.removeFileHash(filePath);
+  }
+
+  /**
+   * Clear all processed file hashes
+   */
+  public clearAllProcessedFiles(): void {
+    this.hashManager.clearAllHashes();
+  }
+
+  /**
+   * Get information about processed files
+   * @returns Object with hash storage info
+   */
+  public getProcessedFilesInfo(): { hashFilePath: string; processedCount: number } {
+    return this.hashManager.getInfo();
+  }
+
+  /**
+   * Get all processed file hashes
+   * @returns Array of all stored hashes
+   */
+  public getAllProcessedHashes(): string[] {
+    return this.hashManager.getAllHashes();
   }
 }

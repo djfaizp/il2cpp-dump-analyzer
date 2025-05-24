@@ -4,7 +4,7 @@
       "command": "npx",
       "args": [
         "ts-node",
-        "src/index.ts"
+        "src/mcp/stdio-server.ts"
       ],
       "cwd": ".",
       "description": "IL2CPP Dump Analyzer MCP Server for Unity game analysis",

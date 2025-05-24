@@ -21,9 +21,9 @@ export class IL2CPPVectorStore {
   private documentHashes: Set<string> = new Set(); // Track document hashes for in-memory deduplication
   private hashesFilePath: string;
 
-  constructor() {
+  constructor(model?: string) {
     // Initialize the embeddings model
-    const modelName = process.env.EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
+    const modelName = model || process.env.EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
     this.embeddings = new XenovaEmbeddings(modelName);
 
     // Check if Supabase configuration is available
