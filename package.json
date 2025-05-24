@@ -28,12 +28,12 @@
   "author": "Developer",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/il2cpp-dump-analyzer.git"
+    "url": "git+https://github.com/djfaizp/il2cpp-dump-analyzer.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/il2cpp-dump-analyzer/issues"
+    "url": "https://github.com/djfaizp/il2cpp-dump-analyzer/issues"
   },
-  "homepage": "https://github.com/yourusername/il2cpp-dump-analyzer#readme",
+  "homepage": "https://github.com/djfaizp/il2cpp-dump-analyzer#readme",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
