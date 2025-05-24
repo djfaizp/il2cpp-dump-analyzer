@@ -5,7 +5,8 @@ dist/
 
 # Environment variables
 .env
-
+.kilocode
+.augmentignore
 # Logs
 logs
 *.log
@@ -26,7 +27,8 @@ yarn-error.log*
 .DS_Store
 .DS_Store?
 ._*
-/models
+
+models/*
 dump.cs
 .Spotlight-V100
 .Trashes
