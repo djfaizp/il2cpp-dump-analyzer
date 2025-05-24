@@ -26,6 +26,7 @@ yarn-error.log*
 .DS_Store
 .DS_Store?
 ._*
+/models
 dump.cs
 .Spotlight-V100
 .Trashes
