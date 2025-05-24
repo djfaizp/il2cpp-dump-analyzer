@@ -2,32 +2,44 @@
 
 const path = require('path');
 
+// Load environment variables from .env file
+try {
+  require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
+  console.log('✓ Environment variables loaded from .env file');
+} catch (error) {
+  // dotenv is optional, continue without it
+  console.log('ℹ No .env file found or dotenv not available, using system environment variables');
+}
+
 // Set up the environment for the MCP server
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
-// Import and start the MCP stdio server
+// Import and start the unified MCP stdio server
 async function startMcpServer() {
   try {
     // Import the compiled TypeScript modules
-    const { EnhancedIL2CPPDumpParser } = require('../dist/parser/enhanced-il2cpp-parser.js');
-    const { IL2CPPIndexer } = require('../dist/indexer/indexer.js');
-    const { startMcpStdioServer, initializeVectorStore } = require('../dist/mcp/mcp-sdk-server.js');
-    
-    // Get the dump.cs file path
-    const dumpFilePath = path.resolve(__dirname, '..', 'dump.cs');
-    
-    // Create and initialize the indexer with enhanced parser
-    const indexer = new IL2CPPIndexer();
-    
-    // Index the dump file
-    const vectorStore = await indexer.indexFile(dumpFilePath);
-    
-    // Initialize the MCP server with the vector store
-    initializeVectorStore(vectorStore);
-    
-    // Start the MCP stdio server
-    await startMcpStdioServer();
-    
+    const { startMcpServer } = require('../dist/mcp/mcp-sdk-server.js');
+
+    // Get configuration from environment variables or defaults
+    // Use current working directory instead of __dirname for dump file
+    const dumpFilePath = process.env.DUMP_FILE_PATH || path.resolve(process.cwd(), 'dump.cs');
+    const model = process.env.EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
+    const logLevel = process.env.LOG_LEVEL || 'info';
+
+    console.log(`Starting IL2CPP MCP Server with dump file: ${dumpFilePath}`);
+    console.log(`Using embedding model: ${model}`);
+
+    // Start the unified MCP server with stdio transport
+    await startMcpServer({
+      dumpFilePath: dumpFilePath,
+      model: model,
+      environment: 'production',
+      logLevel: logLevel,
+      progressCallback: (progress, message) => {
+        console.log(`[${progress}%] ${message}`);
+      }
+    });
+
   } catch (error) {
     console.error('Failed to start MCP server:', error);
     process.exit(1);

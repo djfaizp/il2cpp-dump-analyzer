@@ -17,7 +17,10 @@
           "Class hierarchy analysis",
           "Method signature lookup",
           "Enum value retrieval",
-          "Advanced filtering and search"
+          "Advanced filtering and search",
+          "Dependency mapping and analysis",
+          "Cross-reference analysis",
+          "Design pattern detection and analysis"
         ],
         "supportedGameEngines": ["Unity"],
         "supportedLanguages": ["C#"],
@@ -111,6 +114,54 @@
               "type": "string",
               "description": "The name of the enum to find values for",
               "required": true
+            }
+          }
+        },
+        {
+          "name": "find_design_patterns",
+          "description": "Detect and analyze design patterns in the IL2CPP codebase",
+          "parameters": {
+            "pattern_types": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["singleton", "observer", "factory", "strategy", "command", "state", "decorator", "adapter", "facade", "proxy", "builder", "template_method", "chain_of_responsibility", "mediator", "memento", "visitor", "flyweight", "composite", "bridge", "abstract_factory", "prototype", "iterator"]
+              },
+              "description": "Array of design patterns to detect",
+              "required": true
+            },
+            "confidence_threshold": {
+              "type": "number",
+              "description": "Minimum confidence level (0.1-1.0)",
+              "default": 0.7,
+              "minimum": 0.1,
+              "maximum": 1.0,
+              "required": false
+            },
+            "include_partial_matches": {
+              "type": "boolean",
+              "description": "Include partial pattern implementations",
+              "default": true,
+              "required": false
+            },
+            "namespace_scope": {
+              "type": "string",
+              "description": "Limit search to specific namespace pattern",
+              "required": false
+            },
+            "exclude_unity_patterns": {
+              "type": "boolean",
+              "description": "Exclude Unity-specific pattern implementations",
+              "default": false,
+              "required": false
+            },
+            "max_results_per_pattern": {
+              "type": "number",
+              "description": "Maximum results per pattern type (1-50)",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 50,
+              "required": false
             }
           }
         }

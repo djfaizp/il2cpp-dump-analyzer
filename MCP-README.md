@@ -10,6 +10,9 @@ A Model Context Protocol (MCP) server for analyzing IL2CPP dump.cs files from Un
 - **Method signature lookup**: Search for specific methods and their signatures
 - **Enum value retrieval**: Access enum definitions and values
 - **Advanced filtering and search**: Powerful search capabilities with semantic similarity
+- **Dependency mapping and analysis**: Analyze class dependencies, coupling, and circular references
+- **Cross-reference analysis**: Find all references to classes, methods, fields, and other entities
+- **Design pattern detection**: Identify and analyze common design patterns (Singleton, Observer, Factory, etc.)
 
 ## Installation
 
@@ -56,11 +59,40 @@ Set these environment variables:
 
 ## MCP Tools Available
 
-- `search_il2cpp_dump`: Search through the IL2CPP dump with semantic similarity
+### Core Analysis Tools
+- `search_code`: Search through the IL2CPP dump with semantic similarity and filtering
 - `find_monobehaviours`: Find Unity MonoBehaviour classes
-- `analyze_class_hierarchy`: Analyze class inheritance relationships
-- `find_methods`: Search for specific methods
-- `get_enum_values`: Retrieve enum definitions
+- `find_class_hierarchy`: Analyze class inheritance relationships and methods
+- `find_enum_values`: Retrieve enum definitions and values
+
+### Advanced Analysis Tools
+- `analyze_dependencies`: Analyze class dependencies, coupling metrics, and circular references
+  - **Parameters**:
+    - `class_name` (required): Target class to analyze
+    - `analysis_type` (optional): "incoming" | "outgoing" | "bidirectional" | "circular" (default: "bidirectional")
+    - `depth` (optional): Traversal depth 1-5 (default: 3)
+    - `include_system_types` (optional): Include Unity/System dependencies (default: false)
+  - **Returns**: Dependency graph with coupling metrics, circular dependency detection, and refactoring insights
+
+- `find_cross_references`: Find all references to classes, methods, fields, properties, or events
+  - **Parameters**:
+    - `target_name` (required): Name of the target entity to find references for
+    - `target_type` (required): "class" | "method" | "field" | "property" | "event" | "enum" | "interface"
+    - `reference_type` (optional): "usage" | "inheritance" | "implementation" | "declaration" | "all" (default: "all")
+    - `include_nested` (optional): Include nested types (default: true)
+    - `include_system_types` (optional): Include Unity/System types (default: false)
+    - `max_results` (optional): Maximum results 1-200 (default: 50)
+  - **Returns**: Cross-reference analysis with usage patterns, context, and relationship details
+
+- `find_design_patterns`: Detect and analyze design patterns in the IL2CPP codebase
+  - **Parameters**:
+    - `pattern_types` (required): Array of patterns to detect: ["singleton", "observer", "factory", "strategy", "command", "state", "decorator", "adapter", "facade", "proxy", "builder", "template_method", "chain_of_responsibility", "mediator", "memento", "visitor", "flyweight", "composite", "bridge", "abstract_factory", "prototype", "iterator"]
+    - `confidence_threshold` (optional): Minimum confidence level 0.1-1.0 (default: 0.7)
+    - `include_partial_matches` (optional): Include partial pattern implementations (default: true)
+    - `namespace_scope` (optional): Limit search to specific namespace pattern
+    - `exclude_unity_patterns` (optional): Exclude Unity-specific pattern implementations (default: false)
+    - `max_results_per_pattern` (optional): Maximum results per pattern type 1-50 (default: 10)
+  - **Returns**: Design pattern analysis with confidence scores, implementation details, evidence, and architectural insights
 
 ## Requirements
 

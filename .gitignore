@@ -41,3 +41,17 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+
+# Hash and test files
+*.hash
+*-hashes.json
+test-*.js
+test-*.ts
+test-*.cs
+
+# NPM package files
+*.tgz
+
+# Local hash storage files
+.processed_*
+*-processed.json

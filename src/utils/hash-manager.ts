@@ -1,11 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { IHashManager } from './supabase-hash-manager';
 
 /**
  * Manages file hashes to prevent duplicate processing of dump.cs files
  */
-export class HashManager {
+export class HashManager implements IHashManager {
   private hashFilePath: string;
   private processedHashes: Set<string>;
 

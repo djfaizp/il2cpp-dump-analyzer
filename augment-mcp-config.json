@@ -6,7 +6,6 @@
         "run",
         "start"
       ],
-      "cwd": ".",
       "description": "IL2CPP Dump Analyzer MCP Server for Unity game analysis"
     }
   }

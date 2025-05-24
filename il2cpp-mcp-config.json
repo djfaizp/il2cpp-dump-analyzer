@@ -17,7 +17,10 @@
           "MonoBehaviour discovery",
           "Class hierarchy analysis",
           "Method signature lookup",
-          "Enum value retrieval"
+          "Enum value retrieval",
+          "Advanced filtering and search",
+          "Dependency mapping and analysis",
+          "Cross-reference analysis"
         ],
         "supportedGameEngines": ["Unity"],
         "supportedLanguages": ["C#"],

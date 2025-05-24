@@ -1,18 +1,4 @@
--- Run these commands in the Supabase SQL Editor
-
--- Step 1: Enable the pgvector extension
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Step 2: Create the il2cpp_documents table with vector support
-CREATE TABLE IF NOT EXISTS il2cpp_documents (
-  id BIGSERIAL PRIMARY KEY,
-  content TEXT,
-  metadata JSONB,
-  embedding VECTOR(384),
-  document_hash TEXT UNIQUE
-);
-
--- Step 3: Create a function to match documents
+-- Update the match_documents function to fix the ambiguous column reference
 CREATE OR REPLACE FUNCTION match_documents(
   query_embedding VECTOR(384),
   match_threshold FLOAT,
@@ -40,8 +26,32 @@ BEGIN
 END;
 $$;
 
--- Step 4: No index for now to avoid dimension limitations
--- You can add an appropriate index later if needed for performance
--- CREATE INDEX IF NOT EXISTS il2cpp_documents_embedding_idx
--- ON il2cpp_documents
--- USING GiST (embedding vector_cosine_ops);
+-- Create the file_hashes table for tracking processed dump.cs files
+CREATE TABLE IF NOT EXISTS file_hashes (
+  id BIGSERIAL PRIMARY KEY,
+  file_path TEXT UNIQUE NOT NULL,
+  hash_value TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create an index on file_path for faster lookups
+CREATE INDEX IF NOT EXISTS file_hashes_file_path_idx ON file_hashes(file_path);
+
+-- Create an index on hash_value for faster hash lookups
+CREATE INDEX IF NOT EXISTS file_hashes_hash_value_idx ON file_hashes(hash_value);
+
+-- Create a function to update the updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Create a trigger to automatically update the updated_at column
+CREATE TRIGGER update_file_hashes_updated_at
+  BEFORE UPDATE ON file_hashes
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();

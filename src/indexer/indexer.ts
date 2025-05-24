@@ -4,7 +4,8 @@ import { EnhancedIL2CPPDumpParser } from '../parser/enhanced-il2cpp-parser';
 import { IL2CPPCodeChunker, CodeChunk } from '../embeddings/chunker';
 import { IL2CPPVectorStore } from '../embeddings/vector-store';
 import { IL2CPPClass, IL2CPPEnum, IL2CPPInterface, EnhancedParseResult } from '../parser/enhanced-types';
-import { HashManager } from '../utils/hash-manager';
+import { createHashManagerFromEnv } from '../utils/hash-manager-factory';
+import { IHashManager } from '../utils/supabase-hash-manager';
 
 /**
  * Manages the indexing process for IL2CPP dump files
@@ -13,7 +14,7 @@ export class IL2CPPIndexer {
   private parser: EnhancedIL2CPPDumpParser;
   private chunker: IL2CPPCodeChunker;
   private vectorStore: IL2CPPVectorStore;
-  private hashManager: HashManager;
+  private hashManager: IHashManager;
 
   constructor(
     private readonly chunkSize: number = 1000,
@@ -24,7 +25,7 @@ export class IL2CPPIndexer {
     this.parser = new EnhancedIL2CPPDumpParser();
     this.chunker = new IL2CPPCodeChunker(chunkSize, chunkOverlap);
     this.vectorStore = new IL2CPPVectorStore(model);
-    this.hashManager = new HashManager(hashFilePath);
+    this.hashManager = createHashManagerFromEnv(hashFilePath);
   }
 
   /**
@@ -39,8 +40,24 @@ export class IL2CPPIndexer {
     progressCallback?: (progress: number, message: string) => void,
     forceReprocess: boolean = false
   ): Promise<IL2CPPVectorStore> {
+    // Initialize hash manager if it supports async initialization
+    if (this.hashManager.initialize) {
+      await this.hashManager.initialize();
+    }
+
     // Check if file was already processed (unless forced)
-    if (!forceReprocess && this.hashManager.isFileProcessed(filePath)) {
+    let isProcessed = false;
+    if (!forceReprocess) {
+      if (this.hashManager.isFileProcessedAsync) {
+        // Use async method for Supabase hash manager
+        isProcessed = await this.hashManager.isFileProcessedAsync(filePath);
+      } else {
+        // Use sync method for local hash manager
+        isProcessed = this.hashManager.isFileProcessed(filePath);
+      }
+    }
+
+    if (isProcessed) {
       const hash = this.hashManager.getFileHash(filePath);
       const fileName = path.basename(filePath);
       if (progressCallback) {
@@ -202,7 +219,7 @@ export class IL2CPPIndexer {
    * Get the hash manager instance
    * @returns Hash manager instance
    */
-  public getHashManager(): HashManager {
+  public getHashManager(): IHashManager {
     return this.hashManager;
   }
 
@@ -213,6 +230,24 @@ export class IL2CPPIndexer {
    */
   public isFileProcessed(filePath: string): boolean {
     return this.hashManager.isFileProcessed(filePath);
+  }
+
+  /**
+   * Check if a file has been processed before (async version)
+   * @param filePath Path to the dump.cs file
+   * @returns Promise that resolves to true if file was already processed
+   */
+  public async isFileProcessedAsync(filePath: string): Promise<boolean> {
+    // Initialize hash manager if it supports async initialization
+    if (this.hashManager.initialize) {
+      await this.hashManager.initialize();
+    }
+
+    if (this.hashManager.isFileProcessedAsync) {
+      return await this.hashManager.isFileProcessedAsync(filePath);
+    } else {
+      return this.hashManager.isFileProcessed(filePath);
+    }
   }
 
   /**
@@ -244,7 +279,7 @@ export class IL2CPPIndexer {
    * Get information about processed files
    * @returns Object with hash storage info
    */
-  public getProcessedFilesInfo(): { hashFilePath: string; processedCount: number } {
+  public getProcessedFilesInfo(): { hashFilePath?: string; processedCount: number } {
     return this.hashManager.getInfo();
   }
 
