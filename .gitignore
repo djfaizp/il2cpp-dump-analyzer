@@ -30,7 +30,7 @@ yarn-error.log*
 .Trashes
 ehthumbs.db
 Thumbs.db
-
+.npmignore
 # Test coverage
 coverage/
 
