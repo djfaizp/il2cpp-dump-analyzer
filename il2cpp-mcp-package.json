@@ -1,0 +1,47 @@
+{
+  "name": "@il2cpp/dump-analyzer-mcp",
+  "version": "1.0.0",
+  "description": "IL2CPP Dump Analyzer MCP Server for Unity game analysis",
+  "main": "dist/index.js",
+  "bin": {
+    "il2cpp-mcp": "./bin/il2cpp-mcp.js"
+  },
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "mcpServers": {
+    "il2cpp-dump-analyzer": {
+      "command": "npx",
+      "args": [
+        "@il2cpp/dump-analyzer-mcp",
+        "start"
+      ],
+      "description": "IL2CPP Dump Analyzer MCP Server for Unity game analysis"
+    }
+  },
+  "keywords": [
+    "il2cpp",
+    "unity",
+    "mcp",
+    "context7",
+    "rag",
+    "augment"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "@langchain/community": "^0.0.15",
+    "@langchain/core": "^0.1.0",
+    "@langchain/textsplitters": "^0.0.1",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "compute-cosine-similarity": "^1.1.0",
+    "dotenv": "^16.3.1",
+    "express": "^5.1.0",
+    "langchain": "^0.0.200",
+    "tree-sitter": "^0.21.0",
+    "tree-sitter-c-sharp": "^0.23.1",
+    "zod": "^3.22.4"
+  }
+}

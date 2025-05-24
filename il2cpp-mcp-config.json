@@ -1,0 +1,62 @@
+{
+  "mcpServers": {
+    "il2cpp-dump-analyzer": {
+      "command": "npx",
+      "args": [
+        "ts-node",
+        "src/index.ts"
+      ],
+      "cwd": ".",
+      "description": "IL2CPP Dump Analyzer MCP Server for Unity game analysis",
+      "metadata": {
+        "name": "IL2CPP Dump Analyzer",
+        "version": "1.0.0",
+        "author": "IL2CPP Dump Analyzer Team",
+        "capabilities": [
+          "Unity IL2CPP dump analysis",
+          "MonoBehaviour discovery",
+          "Class hierarchy analysis",
+          "Method signature lookup",
+          "Enum value retrieval"
+        ],
+        "supportedGameEngines": ["Unity"],
+        "supportedLanguages": ["C#"],
+        "documentation": "A specialized RAG system for analyzing IL2CPP dump.cs files from Unity games"
+      },
+      "tools": [
+        {
+          "name": "search_code",
+          "description": "Search for code in the IL2CPP dump",
+          "parameters": {
+            "query": "The search query",
+            "filter_type": "Filter by entity type (class, method, enum, interface)",
+            "top_k": "Number of results to return"
+          }
+        },
+        {
+          "name": "find_monobehaviours",
+          "description": "Find MonoBehaviour classes in the IL2CPP dump",
+          "parameters": {
+            "query": "Optional search query to filter MonoBehaviours",
+            "top_k": "Number of results to return"
+          }
+        },
+        {
+          "name": "find_class_hierarchy",
+          "description": "Find class hierarchy information",
+          "parameters": {
+            "class_name": "The name of the class to find hierarchy for",
+            "include_methods": "Whether to include methods in the output"
+          }
+        },
+        {
+          "name": "find_enum_values",
+          "description": "Find enum values",
+          "parameters": {
+            "enum_name": "The name of the enum to find values for"
+          }
+        }
+      ]
+    }
+  }
+}

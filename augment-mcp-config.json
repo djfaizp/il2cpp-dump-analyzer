@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "il2cpp-dump-analyzer": {
+      "command": "npm",
+      "args": [
+        "run",
+        "start"
+      ],
+      "cwd": ".",
+      "description": "IL2CPP Dump Analyzer MCP Server for Unity game analysis"
+    }
+  }
+}
