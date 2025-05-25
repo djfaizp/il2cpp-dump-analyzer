@@ -15,60 +15,63 @@ export * from './enhanced-types';
 export { IL2CPPDumpParser } from './il2cpp-parser';
 
 // Original types for backward compatibility
-export {
+export type {
   IL2CPPClass,
   IL2CPPField,
   IL2CPPMethod,
   IL2CPPParameter,
   IL2CPPEnum,
-  IL2CPPInterface,
+  IL2CPPInterface
+} from './parser';
+
+export {
   initializeParser,
   parseIL2CPPDump
 } from './parser';
 
 /**
  * Enhanced IL2CPP Parser Library
- * 
+ *
  * This library provides comprehensive parsing capabilities for IL2CPP dump.cs files
  * with support for:
- * 
+ *
  * - Delegates (MulticastDelegate and Delegate inheritance)
  * - Nested Types (including compiler-generated types)
  * - Generic Types (with instantiation tracking)
  * - Enhanced metadata extraction
  * - Improved parsing coverage (~90% vs ~60% baseline)
- * 
+ *
  * Usage Example:
  * ```typescript
  * import { EnhancedIL2CPPDumpParser } from './parser';
- * 
+ *
  * const parser = new EnhancedIL2CPPDumpParser();
  * await parser.loadFile('dump.cs');
  * const result = parser.extractAllConstructs();
- * 
+ *
  * console.log(`Found ${result.statistics.totalConstructs} constructs`);
  * console.log(`Delegates: ${result.delegates.length}`);
  * console.log(`Generics: ${result.generics.length}`);
  * console.log(`Nested Types: ${result.nestedTypes.length}`);
  * ```
- * 
+ *
  * Key Features:
- * 
+ *
  * 1. **Delegate Parsing**: Automatically detects and parses delegate types,
  *    extracting signature information from Invoke methods.
- * 
+ *
  * 2. **Nested Type Support**: Handles nested classes, structs, enums, and
  *    interfaces, including compiler-generated types like lambda containers.
- * 
+ *
  * 3. **Generic Type Analysis**: Parses generic type definitions and tracks
  *    their instantiations with specific type arguments.
- * 
+ *
  * 4. **Enhanced Metadata**: Extracts additional information like access
  *    modifiers, attributes, and compiler-generated markers.
- * 
+ *
  * 5. **Search and Filtering**: Provides search capabilities across all
  *    construct types with optional type filtering.
- * 
+ *
  * 6. **Statistics and Coverage**: Tracks parsing statistics and estimates
  *    coverage improvements over baseline parsing.
  */

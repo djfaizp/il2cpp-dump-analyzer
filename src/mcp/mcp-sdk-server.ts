@@ -2,11 +2,8 @@
 
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import path from 'path';
-import express from 'express';
-import { randomUUID } from 'crypto';
 
 // Import IL2CPP components
 import { IL2CPPIndexer } from '../indexer/indexer';
@@ -33,15 +30,7 @@ export interface InitializationOptions {
   forceReprocess?: boolean;
 }
 
-/**
- * HTTP server configuration options
- */
-export interface HttpServerOptions {
-  sessionTimeout?: number;
-  maxSessions?: number;
-  enableLogging?: boolean;
-  enableCors?: boolean;
-}
+
 
 /**
  * Error types for comprehensive error handling
@@ -292,7 +281,6 @@ function createMcpServer(): McpServer {
       protocol: "MCP",
       features: {
         stdio_transport: true,
-        http_transport: true,
         resource_templates: true,
         advanced_tools: true
       }
@@ -1842,251 +1830,7 @@ export async function startMcpStdioServer(): Promise<void> {
   }
 }
 
-/**
- * Start the MCP server with HTTP transport
- * @param port Port to listen on
- * @param host Host to bind to
- * @param options HTTP server options
- */
-export async function startMcpHttpServer(
-  port: number,
-  host: string,
-  options: HttpServerOptions = {}
-): Promise<void> {
-  try {
-    Logger.info(`Starting MCP server with HTTP transport on ${host}:${port}...`);
 
-    ensureInitialized();
-
-    const {
-      sessionTimeout = 300000, // 5 minutes
-      maxSessions = 100,
-      enableLogging = true,
-      enableCors = true
-    } = options;
-
-    const app = express();
-
-    // Middleware
-    app.use(express.json({ limit: '10mb' }));
-
-    if (enableCors) {
-      app.use((req, res, next) => {
-        res.header('Access-Control-Allow-Origin', '*');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id');
-        if (req.method === 'OPTIONS') {
-          res.sendStatus(200);
-          return;
-        }
-        next();
-      });
-    }
-
-    if (enableLogging) {
-      app.use((req, res, next) => {
-        Logger.debug(`${req.method} ${req.path} - Session: ${req.headers['mcp-session-id'] || 'none'}`);
-        next();
-      });
-    }
-
-    // Map to store transports by session ID with cleanup
-    const transports: { [sessionId: string]: {
-      transport: StreamableHTTPServerTransport;
-      lastActivity: number;
-    } } = {};
-
-    // Session cleanup interval
-    const cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      const expiredSessions = Object.entries(transports)
-        .filter(([_, session]) => now - session.lastActivity > sessionTimeout)
-        .map(([sessionId]) => sessionId);
-
-      expiredSessions.forEach(sessionId => {
-        Logger.debug(`Cleaning up expired session: ${sessionId}`);
-        delete transports[sessionId];
-      });
-
-      if (expiredSessions.length > 0) {
-        Logger.info(`Cleaned up ${expiredSessions.length} expired sessions`);
-      }
-    }, sessionTimeout / 2);
-
-    // Handle POST requests for client-to-server communication
-    app.post('/mcp', async (req, res) => {
-      try {
-        const sessionId = req.headers['mcp-session-id'] as string | undefined;
-        let transportSession: { transport: StreamableHTTPServerTransport; lastActivity: number };
-
-        if (sessionId && transports[sessionId]) {
-          // Reuse existing transport
-          transportSession = transports[sessionId];
-          transportSession.lastActivity = Date.now();
-        } else {
-          // Check session limit
-          if (Object.keys(transports).length >= maxSessions) {
-            Logger.warn('Maximum number of sessions reached');
-            return res.status(429).json({
-              jsonrpc: '2.0',
-              error: {
-                code: -32000,
-                message: 'Maximum number of sessions reached',
-              },
-              id: null,
-            });
-          }
-
-          // New session
-          const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: () => randomUUID(),
-            onsessioninitialized: (newSessionId) => {
-              Logger.debug(`New session initialized: ${newSessionId}`);
-              transports[newSessionId] = {
-                transport,
-                lastActivity: Date.now()
-              };
-            }
-          });
-
-          // Clean up transport when closed
-          transport.onclose = () => {
-            if (transport.sessionId) {
-              Logger.debug(`Session closed: ${transport.sessionId}`);
-              delete transports[transport.sessionId];
-            }
-          };
-
-          const server = createMcpServer();
-          await server.connect(transport);
-
-          transportSession = {
-            transport,
-            lastActivity: Date.now()
-          };
-        }
-
-        // Handle the request
-        try {
-          await transportSession.transport.handleRequest(req, res, req.body);
-        } catch (transportError) {
-          Logger.error('Transport error during request handling:', transportError);
-          if (!res.headersSent) {
-            res.status(500).json({
-              jsonrpc: '2.0',
-              error: {
-                code: -32603,
-                message: 'Transport error',
-                data: transportError instanceof Error ? transportError.message : 'Unknown transport error'
-              },
-              id: null,
-            });
-          }
-          return;
-        }
-
-      } catch (error) {
-        Logger.error('Error handling MCP POST request:', error);
-        if (!res.headersSent) {
-          try {
-            res.status(500).json({
-              jsonrpc: '2.0',
-              error: {
-                code: -32603,
-                message: 'Internal server error',
-                data: error instanceof Error ? error.message : 'Unknown error'
-              },
-              id: null,
-            });
-          } catch (jsonError) {
-            Logger.error('Failed to send JSON error response:', jsonError);
-            res.status(500).send('Internal server error');
-          }
-        }
-      }
-    });
-
-    // Reusable handler for GET and DELETE requests
-    const handleSessionRequest = async (req: express.Request, res: express.Response) => {
-      try {
-        const sessionId = req.headers['mcp-session-id'] as string | undefined;
-        if (!sessionId || !transports[sessionId]) {
-          Logger.warn(`Invalid or missing session ID: ${sessionId}`);
-          res.status(400).send('Invalid or missing session ID');
-          return;
-        }
-
-        const transportSession = transports[sessionId];
-        transportSession.lastActivity = Date.now();
-
-        try {
-          await transportSession.transport.handleRequest(req, res);
-        } catch (transportError) {
-          Logger.error('Transport error during session request:', transportError);
-          if (!res.headersSent) {
-            res.status(500).send('Transport error');
-          }
-          return;
-        }
-
-      } catch (error) {
-        Logger.error('Error handling session request:', error);
-        if (!res.headersSent) {
-          res.status(500).send('Internal server error');
-        }
-      }
-    };
-
-    // Handle GET requests for server-to-client notifications via SSE
-    app.get('/mcp', handleSessionRequest);
-
-    // Handle DELETE requests for session termination
-    app.delete('/mcp', handleSessionRequest);
-
-    // Health check endpoint
-    app.get('/health', (req, res) => {
-      res.json({
-        status: 'healthy',
-        initialized: isInitialized,
-        sessions: Object.keys(transports).length,
-        maxSessions,
-        timestamp: new Date().toISOString()
-      });
-    });
-
-    // Start the server
-    const httpServer = app.listen(port, host, () => {
-      Logger.info(`MCP server listening at http://${host}:${port}/mcp`);
-      Logger.info(`Health check available at http://${host}:${port}/health`);
-    });
-
-    // Graceful shutdown
-    process.on('SIGTERM', () => {
-      Logger.info('Received SIGTERM, shutting down gracefully...');
-      clearInterval(cleanupInterval);
-      httpServer.close(() => {
-        Logger.info('HTTP server closed');
-        process.exit(0);
-      });
-    });
-
-    process.on('SIGINT', () => {
-      Logger.info('Received SIGINT, shutting down gracefully...');
-      clearInterval(cleanupInterval);
-      httpServer.close(() => {
-        Logger.info('HTTP server closed');
-        process.exit(0);
-      });
-    });
-
-  } catch (error) {
-    Logger.error('Failed to start HTTP server:', error);
-    throw new MCPServerError(
-      `Failed to start HTTP server: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      ErrorType.TRANSPORT_ERROR
-    );
-  }
-}
 
 // ============================================================================
 // STARTUP FUNCTIONS (from stdio-server.ts)
@@ -2115,29 +1859,7 @@ export async function startMcpServer(options: InitializationOptions = {}): Promi
   }
 }
 
-/**
- * Complete server startup with initialization and HTTP transport
- */
-export async function startMcpHttpServerComplete(
-  port: number,
-  host: string,
-  initOptions: InitializationOptions = {},
-  httpOptions: HttpServerOptions = {}
-): Promise<void> {
-  try {
-    Logger.info('Starting complete MCP HTTP server initialization and startup...');
 
-    // Initialize the server with the provided options
-    await initializeServer(initOptions);
-
-    // Start the MCP HTTP server
-    await startMcpHttpServer(port, host, httpOptions);
-
-  } catch (error) {
-    Logger.error('Failed to start MCP HTTP server:', error);
-    throw error;
-  }
-}
 
 // ============================================================================
 // UTILITY FUNCTIONS

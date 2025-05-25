@@ -1,82 +1,257 @@
-# Unity IL2CPP Dump Analyzer: Agentic RAG System
+# Unity IL2CPP Dump Analyzer MCP System
 
-A specialized Retrieval-Augmented Generation (RAG) system for analyzing IL2CPP dump.cs files from Unity games. This system implements the Model Context Protocol (MCP) server specification using the official MCP TypeScript SDK to enable standardized interactions with LLM clients like Claude and GPT.
+A specialized Retrieval-Augmented Generation (RAG) system for analyzing IL2CPP dump.cs files from Unity games. This system implements the Model Context Protocol (MCP) server specification using the official MCP TypeScript SDK to enable standardized interactions with LLM clients like Claude Desktop, GPT, and other MCP-compatible tools.
 
 ## Features
 
+### Core Capabilities
 - **IL2CPP Dump File Processing**: Parse and analyze IL2CPP dump.cs files (C# code decompiled from Unity IL2CPP builds)
-- **Advanced Embeddings**: Uses Xenova's Transformers.js with the all-MiniLM-L6-v2 model for high-quality embeddings
-- **Knowledge Retrieval System**: Integrate with Context7 as the knowledge retrieval engine
-- **Agent Architecture**: Parse natural language queries about game mechanics or code structure
-- **Official MCP SDK Integration**: Uses the Model Context Protocol TypeScript SDK for full MCP compliance
+- **Semantic Code Chunking**: Specialized IL2CPPCodeChunker preserves code context and meaning
+- **Advanced Embeddings**: Uses Xenova's Transformers.js with the all-MiniLM-L6-v2 model (384-dimensional embeddings)
+- **Supabase Vector Database**: High-performance vector search with pgvector extension
+- **Hash-based Change Detection**: Avoid reprocessing unchanged files for efficiency
+
+### Advanced Analysis Tools
+- **MonoBehaviour Discovery**: Find and analyze Unity component classes
+- **Class Hierarchy Analysis**: Explore inheritance relationships and dependencies
+- **Cross-Reference Analysis**: Track usage patterns and relationships between code entities
+- **Design Pattern Detection**: Identify common design patterns (Singleton, Observer, Factory, etc.)
+- **Dependency Mapping**: Analyze incoming/outgoing dependencies and circular references
+- **Enum Value Extraction**: Retrieve enum definitions and their values
+
+### MCP Integration
+- **Official MCP SDK**: Full compliance with Model Context Protocol specification
+- **Stdio Transport**: Optimized for command-line tools and desktop applications
+- **Comprehensive Tool Suite**: 6 specialized MCP tools for IL2CPP analysis
+- **Input Validation**: Zod schemas ensure robust parameter validation
+- **Error Handling**: Comprehensive error management with detailed logging
 
 ## Prerequisites
 
-- Node.js 18.x or higher
-- Supabase account (optional, for vector database storage)
+- **Node.js 18.x or higher**
+- **TypeScript** (for development)
+- **Supabase account** (required for vector database storage)
+- **IL2CPP dump.cs file** from a Unity game
 
 ## Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/il2cpp-dump-analyzer.git
-   cd il2cpp-dump-analyzer
+   git clone https://github.com/yourusername/il2cpp-dump-analyzer-mcp.git
+   cd il2cpp-dump-analyzer-mcp
    ```
 
-2. Install dependencies:
+2. **Install dependencies:**
    ```bash
    npm install
    ```
 
-3. Create a `.env` file based on the example (optional):
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Customize settings in the `.env` file:
-   ```
-   # Server configuration
-   PORT=3000
-   HOST=localhost
-
-   # Embedding model configuration
-   EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
-
-   # Vector database configuration (for Supabase)
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_KEY=your_supabase_key
-   SUPABASE_TABLE=il2cpp_documents
-   ```
-
-5. Set up Supabase (optional, for vector database storage):
-   - Create a new Supabase project
+3. **Set up Supabase database:**
+   - Create a new Supabase project at [supabase.com](https://supabase.com)
    - Run the SQL commands in `supabase-setup.sql` in the Supabase SQL editor
-   - Update the `.env` file with your Supabase URL and API key
+   - This creates the required tables with pgvector extension for vector storage
+
+4. **Configure environment variables:**
+   ```bash
+   cp simple.env .env
+   ```
+
+   Update the `.env` file with your configuration:
+   ```env
+   # Core Configuration
+   NODE_ENV=production
+   DUMP_FILE_PATH=./dump.cs
+   EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
+   LOG_LEVEL=info
+
+   # Supabase Configuration (Required)
+   SUPABASE_URL=your_supabase_project_url
+   SUPABASE_KEY=your_supabase_anon_key
+   SUPABASE_TABLE_NAME=il2cpp_documents
+
+   # MCP Server Configuration
+   MCP_SERVER_PORT=3000
+   MCP_SERVER_HOST=0.0.0.0
+   ```
+
+5. **Build the project:**
+   ```bash
+   npm run build
+   ```
 
 ## Usage
 
-1. Place your IL2CPP dump.cs file in the root directory of the project.
+### Quick Start
 
-2. Build and start the server:
+1. **Place your IL2CPP dump.cs file** in the root directory (or specify path in `.env`)
+
+2. **Start the MCP server:**
    ```bash
-   npm run build
    npm start
    ```
 
-3. The server will:
-   - Parse the dump.cs file
-   - Create chunks and embeddings
-   - Start an MCP-compliant server
+3. **The server will automatically:**
+   - Parse the IL2CPP dump.cs file
+   - Extract classes, methods, enums, and interfaces
+   - Generate semantic embeddings using Xenova Transformers.js
+   - Store vectors in Supabase with hash-based change detection
+   - Start the MCP server with stdio transport
 
-4. Use the MCP server URL with compatible LLM clients:
-   - For Claude: Use the URL as a Context7 knowledge source
-   - For GPT: Use the URL with the MCP tool
+4. **Connect with MCP clients:**
+   - **Claude Desktop**: Add to MCP configuration
+   - **Other MCP clients**: Use stdio transport connection
 
-## MCP Resources and Tools
+### MCP Client Configuration
 
-The server exposes IL2CPP dump data through the Model Context Protocol using the official MCP TypeScript SDK.
+#### Claude Desktop Configuration
+
+Add to your Claude Desktop MCP configuration file:
+
+```json
+{
+  "mcpServers": {
+    "il2cpp-analyzer": {
+      "command": "node",
+      "args": ["./bin/il2cpp-mcp-stdio.js"],
+      "cwd": "/path/to/il2cpp-dump-analyzer-mcp"
+    }
+  }
+}
+```
+
+#### Alternative: Direct Node.js Execution
+
+```bash
+# Run the MCP server directly
+node ./bin/il2cpp-mcp-stdio.js
+
+# Or use npm script
+npm run mcp:stdio
+```
+
+## MCP Tools and Resources
+
+The server provides 6 comprehensive MCP tools for IL2CPP analysis:
+
+### 1. `search_code` - General Code Search
+Search for code entities with advanced filtering capabilities.
+
+**Parameters:**
+- `query` (string, required): The search query
+- `filter_type` (string, optional): Filter by entity type (`class`, `method`, `enum`, `interface`)
+- `filter_namespace` (string, optional): Filter by namespace
+- `filter_monobehaviour` (boolean, optional): Filter to only MonoBehaviour classes
+- `top_k` (number, optional, default: 5): Number of results to return
+
+**Example:**
+```typescript
+// Find all Player-related classes
+search_code({ query: "Player", filter_type: "class", top_k: 10 })
+```
+
+### 2. `find_monobehaviours` - Unity Component Discovery
+Find MonoBehaviour classes for Unity component analysis.
+
+**Parameters:**
+- `query` (string, optional): Optional search query to filter MonoBehaviours
+- `top_k` (number, optional, default: 10): Number of results to return
+
+**Example:**
+```typescript
+// Find all MonoBehaviour classes related to "Enemy"
+find_monobehaviours({ query: "Enemy", top_k: 5 })
+```
+
+### 3. `find_class_hierarchy` - Class Inheritance Analysis
+Analyze class inheritance relationships and structure.
+
+**Parameters:**
+- `class_name` (string, required): The name of the class to analyze
+- `include_methods` (boolean, optional, default: true): Include methods in the output
+
+**Example:**
+```typescript
+// Analyze the Player class hierarchy
+find_class_hierarchy({ class_name: "Player", include_methods: true })
+```
+
+### 4. `find_enum_values` - Enum Definition Extraction
+Extract enum definitions and their values.
+
+**Parameters:**
+- `enum_name` (string, required): The name of the enum to find values for
+
+**Example:**
+```typescript
+// Get values for GameState enum
+find_enum_values({ enum_name: "GameState" })
+```
+
+### 5. `analyze_dependencies` - Dependency Mapping
+Analyze class dependencies and relationships.
+
+**Parameters:**
+- `class_name` (string, required): Target class to analyze dependencies for
+- `analysis_type` (enum, optional, default: "bidirectional"): Type of analysis (`incoming`, `outgoing`, `bidirectional`, `circular`)
+- `depth` (number, optional, default: 3): How deep to traverse dependency chains (1-5)
+- `include_system_types` (boolean, optional, default: false): Include Unity/System dependencies
+
+**Example:**
+```typescript
+// Analyze all dependencies for Player class
+analyze_dependencies({
+  class_name: "Player",
+  analysis_type: "bidirectional",
+  depth: 2
+})
+```
+
+### 6. `find_cross_references` - Cross-Reference Analysis
+Find all references to a specific code entity.
+
+**Parameters:**
+- `target_name` (string, required): Name of the target entity
+- `target_type` (enum, required): Type of entity (`class`, `method`, `field`, `property`, `event`, `enum`, `interface`)
+- `reference_type` (enum, optional, default: "all"): Type of references (`usage`, `inheritance`, `implementation`, `declaration`, `all`)
+- `include_nested` (boolean, optional, default: true): Include references within nested types
+- `include_system_types` (boolean, optional, default: false): Include references from Unity/System types
+- `max_results` (number, optional, default: 50): Maximum number of references (1-200)
+
+**Example:**
+```typescript
+// Find all usages of the Transform class
+find_cross_references({
+  target_name: "Transform",
+  target_type: "class",
+  reference_type: "usage",
+  max_results: 100
+})
+```
+
+### 7. `find_design_patterns` - Design Pattern Detection
+Detect common design patterns in the codebase.
+
+**Parameters:**
+- `pattern_types` (array, required): Array of patterns to detect (`singleton`, `observer`, `factory`, `strategy`, `command`, `state`, `decorator`, `adapter`, `facade`, `proxy`, `builder`, `template_method`, `chain_of_responsibility`, `mediator`, `memento`, `visitor`, `flyweight`, `composite`, `bridge`, `abstract_factory`, `prototype`, `iterator`)
+- `confidence_threshold` (number, optional, default: 0.7): Minimum confidence level (0.1-1.0)
+- `include_partial_matches` (boolean, optional, default: true): Include partial pattern implementations
+- `namespace_scope` (string, optional): Limit search to specific namespace pattern
+- `exclude_unity_patterns` (boolean, optional, default: false): Exclude Unity-specific patterns
+- `max_results_per_pattern` (number, optional, default: 10): Maximum results per pattern (1-50)
+
+**Example:**
+```typescript
+// Detect Singleton and Observer patterns
+find_design_patterns({
+  pattern_types: ["singleton", "observer"],
+  confidence_threshold: 0.8,
+  include_partial_matches: false
+})
+```
 
 ### Resources
+
+The server also exposes resources through the MCP resource system:
 
 - `il2cpp://{query}`: Retrieves code snippets matching the query
   - Query parameters:
@@ -85,78 +260,192 @@ The server exposes IL2CPP dump data through the Model Context Protocol using the
     - `filter_namespace`: Filter by namespace
     - `filter_monobehaviour`: Filter to only include MonoBehaviour classes
 
-### Tools
-
-The MCP server provides the following tools:
-
-1. `search_code`: Search for code in the IL2CPP dump
-   - Parameters:
-     - `query`: The search query (required)
-     - `filter_type`: Filter by entity type (optional)
-     - `top_k`: Number of results to return (optional, default: 5)
-
-2. `find_monobehaviours`: Find MonoBehaviour classes in the IL2CPP dump
-   - Parameters:
-     - `query`: Optional search query to filter MonoBehaviours
-     - `top_k`: Number of results to return (optional, default: 10)
-
-### Example Usage with Context7
-
-When using Claude with Context7, simply add the MCP server URL as a knowledge source:
-
-```
-http://localhost:3000/mcp
-```
-
-Context7 will automatically handle the MCP protocol communication.
-
 ## Development
 
-1. Run in development mode:
+### Development Mode
+
+1. **Run in development mode:**
    ```bash
    npm run dev
    ```
 
-2. Test the Xenova embeddings and Supabase integration:
-   ```bash
-   npx ts-node src/test-xenova-supabase.ts
-   ```
-
-3. Run tests:
+2. **Run tests:**
    ```bash
    npm test
+   npm run test:watch    # Watch mode
+   npm run test:coverage # With coverage
    ```
 
-4. Lint the code:
+3. **Lint and format code:**
    ```bash
    npm run lint
+   npm run format
    ```
+
+4. **Build for production:**
+   ```bash
+   npm run build
+   ```
+
+### Testing
+
+The project includes comprehensive Jest testing infrastructure:
+
+- **Unit tests**: All MCP tools and core functionality
+- **Integration tests**: Vector store operations and Supabase integration
+- **Performance tests**: Large file processing and embedding generation
+- **Error handling tests**: Edge cases and error scenarios
+
+Run specific test suites:
+```bash
+npm run test:unit        # Unit tests only
+npm run test:integration # Integration tests only
+npm run test:performance # Performance tests only
+```
+
+### Environment Variables
+
+All available environment variables:
+
+```env
+# Core Configuration
+NODE_ENV=production|development|test
+DUMP_FILE_PATH=./dump.cs
+EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
+LOG_LEVEL=error|warn|info|debug
+
+# Supabase Configuration
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_KEY=your_supabase_anon_or_service_key
+SUPABASE_TABLE_NAME=il2cpp_documents
+
+# MCP Server Configuration
+MCP_SERVER_PORT=3000
+MCP_SERVER_HOST=0.0.0.0
+```
 
 ## Project Structure
 
-- `src/parser/`: IL2CPP dump file parsing
-- `src/embeddings/`: Chunking and embedding generation
-  - `xenova-embeddings.ts`: Embeddings using Xenova's Transformers.js
-  - `supabase-vector-store.ts`: Vector store using Supabase
-  - `vector-store.ts`: Main vector store implementation
-  - `chunker.ts`: Code chunking logic
-- `src/indexer/`: Indexing and processing logic
-- `src/mcp/`: MCP server implementation
-  - `server.ts`: Legacy custom MCP server implementation
-  - `mcp-sdk-server.ts`: New MCP server using the official TypeScript SDK
-  - `types.ts`: MCP type definitions
-- `supabase-setup.sql`: SQL setup for Supabase vector database
+```
+src/
+├── __tests__/              # Test files and test utilities
+│   ├── setup.ts           # Jest test setup
+│   ├── test-data.ts       # Mock IL2CPP data for testing
+│   └── *.test.ts          # Individual test files
+├── config/                 # Configuration utilities
+├── database/              # Database connection and management
+├── embeddings/            # Embedding generation and vector storage
+│   ├── chunker.ts         # IL2CPP-specific code chunking
+│   ├── xenova-embeddings.ts # Xenova Transformers.js integration
+│   ├── supabase-vector-store.ts # Supabase vector store implementation
+│   └── vector-store.ts    # Main vector store interface
+├── indexer/               # File indexing and processing
+│   └── indexer.ts         # Main indexing logic with hash management
+├── mcp/                   # MCP server implementation
+│   ├── mcp-sdk-server.ts  # Main MCP server with all tools
+│   ├── stdio-server.ts    # Stdio transport server
+│   └── types.ts           # MCP type definitions
+├── parser/                # IL2CPP dump file parsing
+│   ├── il2cpp-parser.ts   # Main parser implementation
+│   ├── enhanced-il2cpp-parser.ts # Enhanced parser with metadata
+│   └── index.ts           # Parser exports
+└── utils/                 # Utility functions
+    ├── hash-manager.ts    # File hash management
+    └── supabase-hash-manager.ts # Supabase-based hash storage
+
+bin/
+└── il2cpp-mcp-stdio.js    # Executable MCP server binary
+
+supabase-setup.sql          # Supabase database schema
+```
+
+## Architecture
+
+### Core Components
+
+1. **IL2CPP Parser**: Extracts classes, methods, enums, and interfaces from dump files
+2. **Semantic Chunker**: Preserves code context while creating manageable chunks
+3. **Xenova Embeddings**: Generates 384-dimensional embeddings using Transformers.js
+4. **Supabase Vector Store**: High-performance vector search with pgvector
+5. **MCP Server**: Official SDK implementation with 6 specialized tools
+6. **Hash Manager**: Efficient change detection to avoid reprocessing
+
+### Data Flow
+
+1. **Input**: IL2CPP dump.cs file
+2. **Parsing**: Extract code entities with metadata
+3. **Chunking**: Create semantic chunks preserving context
+4. **Embedding**: Generate vectors using all-MiniLM-L6-v2
+5. **Storage**: Store in Supabase with hash-based deduplication
+6. **Query**: MCP tools provide advanced analysis capabilities
 
 ## MCP SDK Integration
 
-This project uses the official Model Context Protocol TypeScript SDK (`@modelcontextprotocol/sdk`) to implement a fully compliant MCP server. The SDK provides:
+This project uses the official Model Context Protocol TypeScript SDK (`@modelcontextprotocol/sdk`) for full MCP compliance:
 
-- Standardized server implementation with protocol compliance
-- Resource templates for exposing IL2CPP data
-- Tool definitions with parameter validation using Zod
-- Support for multiple transport options (HTTP and stdio)
-- Session management for stateful interactions
+### Key Features
+- **Standardized Protocol**: Full MCP specification compliance
+- **Resource Templates**: Expose IL2CPP data through MCP resources
+- **Tool Definitions**: Comprehensive parameter validation using Zod schemas
+- **Stdio Transport**: Optimized for desktop applications and command-line tools
+- **Error Handling**: Robust error management with detailed logging
+- **Session Management**: Stateful interactions with MCP clients
+
+### Transport Configuration
+The server uses **stdio transport only** for optimal compatibility with:
+- Claude Desktop
+- Command-line MCP clients
+- Desktop applications
+- Development tools
+
+## Performance Considerations
+
+- **Incremental Processing**: Hash-based change detection avoids reprocessing
+- **Efficient Chunking**: Semantic-aware chunking preserves code meaning
+- **Vector Optimization**: 384-dimensional embeddings balance quality and performance
+- **Database Indexing**: Optimized Supabase queries with proper indexing
+- **Memory Management**: Streaming processing for large dump files
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Supabase Connection Errors**
+   - Verify `SUPABASE_URL` and `SUPABASE_KEY` in `.env`
+   - Ensure pgvector extension is enabled
+   - Check network connectivity
+
+2. **Embedding Generation Slow**
+   - First run downloads the model (~90MB)
+   - Subsequent runs use cached model
+   - Consider using faster hardware for large files
+
+3. **MCP Client Connection Issues**
+   - Verify stdio transport configuration
+   - Check file permissions on `bin/il2cpp-mcp-stdio.js`
+   - Ensure Node.js is in PATH
+
+4. **Memory Issues with Large Files**
+   - Increase Node.js memory limit: `node --max-old-space-size=4096`
+   - Consider chunking very large dump files
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes and add tests
+4. Run the test suite: `npm test`
+5. Commit your changes: `git commit -m 'Add amazing feature'`
+6. Push to the branch: `git push origin feature/amazing-feature`
+7. Open a Pull Request
 
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [Model Context Protocol](https://modelcontextprotocol.io/) for the MCP specification
+- [Xenova/Transformers.js](https://github.com/xenova/transformers.js) for client-side embeddings
+- [Supabase](https://supabase.com/) for vector database infrastructure
+- Unity Technologies for IL2CPP technology
