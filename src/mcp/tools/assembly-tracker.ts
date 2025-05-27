@@ -521,7 +521,9 @@ export class AssemblyTrackerToolHandler extends BaseAnalysisToolHandler<Assembly
       if (this.cachedMetadata.size >= maxCacheSize) {
         // Remove oldest entries (simple LRU-like behavior)
         const oldestKey = this.cachedMetadata.keys().next().value;
-        this.cachedMetadata.delete(oldestKey);
+        if (oldestKey !== undefined) {
+          this.cachedMetadata.delete(oldestKey);
+        }
       }
 
       // Cache the current entry

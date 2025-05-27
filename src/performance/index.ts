@@ -3,8 +3,8 @@
  * Memory-efficient streaming parser and performance optimization tools
  */
 
-export {
-  StreamingIL2CPPParser,
+export { StreamingIL2CPPParser } from './streaming-parser';
+export type {
   StreamingParseOptions,
   StreamingParseProgress,
   StreamingParseResult,
@@ -13,8 +13,8 @@ export {
   CancellationToken
 } from './streaming-parser';
 
-export {
-  ChunkedProcessor,
+export { ChunkedProcessor } from './chunked-processor';
+export type {
   ChunkProcessingOptions,
   ChunkProcessingProgress,
   ChunkProcessingResult,

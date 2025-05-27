@@ -178,9 +178,9 @@ public class GameManager : MonoBehaviour // TypeDefIndex: 5678
 
       const result = await handler.execute(params);
 
-      expect(result.content).toContain('Assembly tracking completed');
-      expect(result.content).toContain('Assemblies processed: 3');
-      expect(result.content).toContain('build-v1-0-0');
+      expect(JSON.stringify(result)).toContain('Assembly tracking completed');
+      expect(JSON.stringify(result)).toContain('- **Assemblies processed:** 3');
+      expect(JSON.stringify(result)).toContain('build-v1-0-0');
     });
 
     it('should detect version changes between builds', async () => {
@@ -206,8 +206,8 @@ public class GameManager : MonoBehaviour // TypeDefIndex: 5678
 
       const result = await handler.execute(params2);
 
-      expect(result.content).toContain('Version Changes');
-      expect(result.content).toContain('Assembly-CSharp:** 0.0.0.0 → 1.0.0.0');
+      expect(JSON.stringify(result)).toContain('### Version Changes');
+      expect(JSON.stringify(result)).toContain('Assembly-CSharp:** 0.0.0.0 → 1.0.0.0');
     });
 
     it('should analyze assembly dependencies', async () => {
@@ -220,10 +220,10 @@ public class GameManager : MonoBehaviour // TypeDefIndex: 5678
 
       const result = await handler.execute(params);
 
-      expect(result.content).toContain('Assembly tracking completed');
-      expect(result.content).toContain('Dependencies: mscorlib, UnityEngine.CoreModule');
-      expect(result.content).toContain('mscorlib');
-      expect(result.content).toContain('UnityEngine.CoreModule');
+      expect(JSON.stringify(result)).toContain('Assembly tracking completed');
+      expect(JSON.stringify(result)).toContain('Dependencies: mscorlib, UnityEngine.CoreModule');
+      expect(JSON.stringify(result)).toContain('mscorlib');
+      expect(JSON.stringify(result)).toContain('UnityEngine.CoreModule');
     });
   });
 
@@ -247,8 +247,8 @@ public class GameManager : MonoBehaviour // TypeDefIndex: 5678
 
       const result = await handler.execute(params);
 
-      expect(result.content).toContain('No changes detected between builds');
-      expect(result.content).toContain('build-v1-0-0');
+      expect(JSON.stringify(result)).toContain('No changes detected between builds');
+      expect(JSON.stringify(result)).toContain('build-v1-0-0');
     });
 
     it('should detect new assemblies in comparison', async () => {
@@ -272,8 +272,8 @@ public class GameManager : MonoBehaviour // TypeDefIndex: 5678
 
       const result = await handler.execute(params);
 
-      expect(result.content).toContain('New Assemblies');
-      expect(result.content).toContain('NewLibrary');
+      expect(JSON.stringify(result)).toContain('### New Assemblies');
+      expect(JSON.stringify(result)).toContain('NewLibrary');
     });
 
     it('should detect removed assemblies in comparison', async () => {
@@ -299,8 +299,8 @@ public class GameManager : MonoBehaviour // TypeDefIndex: 5678
 
       const result = await handler.execute(params);
 
-      expect(result.content).toContain('Removed Assemblies');
-      expect(result.content).toContain('Assembly-CSharp');
+      expect(JSON.stringify(result)).toContain('### Removed Assemblies');
+      expect(JSON.stringify(result)).toContain('Assembly-CSharp');
     });
   });
 
@@ -349,7 +349,7 @@ public class GameManager : MonoBehaviour // TypeDefIndex: 5678
 
       const result = await handler.execute(params);
 
-      expect(result.content).toContain('No changes detected between builds');
+      expect(JSON.stringify(result)).toContain('No changes detected between builds');
     });
   });
 
@@ -406,9 +406,9 @@ public class GameManager : MonoBehaviour // TypeDefIndex: 5678
 
       const result = await handler.execute(params);
 
-      expect(result.content).toContain('Processing time:');
-      expect(result.content).toContain('Memory usage:');
-      expect(result.content).toContain('Assemblies processed: 3');
+      expect(JSON.stringify(result)).toContain('- **Processing time:**');
+      expect(JSON.stringify(result)).toContain('- **Memory usage:**');
+      expect(JSON.stringify(result)).toContain('- **Assemblies processed:** 3');
     });
 
     it('should handle large assembly lists efficiently', async () => {
@@ -430,7 +430,7 @@ public class GameManager : MonoBehaviour // TypeDefIndex: 5678
       const executionTime = Date.now() - startTime;
 
       expect(executionTime).toBeLessThan(5000); // Should complete within 5 seconds
-      expect(result.content).toContain('Assemblies processed: 99');
+      expect(JSON.stringify(result)).toContain('- **Assemblies processed:** 99');
     });
   });
 });

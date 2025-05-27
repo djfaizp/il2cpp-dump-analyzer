@@ -87,7 +87,7 @@ export interface QueryMetadataResult {
 
 /**
  * Query Metadata Tool Handler
- * 
+ *
  * Provides advanced metadata querying capabilities with SQL-like syntax and complex filtering.
  */
 export class QueryMetadataToolHandler extends BaseAnalysisToolHandler<QueryMetadataParams, QueryMetadataResult> {
@@ -186,7 +186,7 @@ export class QueryMetadataToolHandler extends BaseAnalysisToolHandler<QueryMetad
     try {
       // Simple SQL parser for basic SELECT statements
       const selectMatch = query.match(/SELECT\s+(.*?)\s+FROM\s+(\w+)(?:\s+WHERE\s+(.+))?/i);
-      
+
       if (!selectMatch) {
         throw new Error('Invalid SQL syntax. Expected: SELECT ... FROM ... [WHERE ...]');
       }
@@ -268,8 +268,8 @@ export class QueryMetadataToolHandler extends BaseAnalysisToolHandler<QueryMetad
    * Execute optimized search with performance enhancements
    */
   private async executeOptimizedSearch(
-    filter: Record<string, any>, 
-    params: QueryMetadataParams, 
+    filter: Record<string, any>,
+    params: QueryMetadataParams,
     optimizationsApplied: string[]
   ): Promise<Document[]> {
     const limit = params.limit || 100;
@@ -329,7 +329,7 @@ export class QueryMetadataToolHandler extends BaseAnalysisToolHandler<QueryMetad
       const bValue = b.metadata[sortField];
 
       if (aValue === bValue) return 0;
-      
+
       const comparison = aValue < bValue ? -1 : 1;
       return sortOrder === 'asc' ? comparison : -comparison;
     });
@@ -391,7 +391,7 @@ export class QueryMetadataToolHandler extends BaseAnalysisToolHandler<QueryMetad
   /**
    * Calculate statistical aggregations
    */
-  private calculateStatistics(documents: Document[], field: string): QueryMetadataResult['aggregations']['statistics'] {
+  private calculateStatistics(documents: Document[], field: string): NonNullable<QueryMetadataResult['aggregations']>['statistics'] {
     const values = documents
       .map(doc => doc.metadata[field])
       .filter(val => typeof val === 'number')
@@ -413,7 +413,7 @@ export class QueryMetadataToolHandler extends BaseAnalysisToolHandler<QueryMetad
     const average = sum / values.length;
     const min = Math.min(...values);
     const max = Math.max(...values);
-    
+
     const variance = values.reduce((acc, val) => acc + Math.pow(val - average, 2), 0) / values.length;
     const standardDeviation = Math.sqrt(variance);
 
@@ -466,7 +466,7 @@ export class QueryMetadataToolHandler extends BaseAnalysisToolHandler<QueryMetad
     for (const fromDoc of fromDocs) {
       for (const toDoc of toDocs) {
         const strength = this.calculateRelationshipStrength(fromDoc, toDoc, crossRefConfig.relationship);
-        
+
         if (strength > 0) {
           relationships.push({
             from: fromDoc.metadata,
