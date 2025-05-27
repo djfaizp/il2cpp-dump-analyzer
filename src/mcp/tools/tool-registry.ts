@@ -24,6 +24,9 @@ import { createAnalyzeTypeHierarchiesTool } from './analyze-type-hierarchies-too
 import { createAnalyzeGenericTypesTool } from './analyze-generic-types-tool';
 import { createAnalyzeTypeDependenciesTool } from './analyze-type-dependencies-tool';
 import { createAnalyzeTypeCompatibilityTool } from './analyze-type-compatibility-tool';
+import { createAssemblyTrackerTool } from './assembly-tracker';
+import { createSearchMetadataTool } from './search-metadata-tool';
+import { createQueryMetadataTool } from './query-metadata-tool';
 
 /**
  * Tool metadata interface
@@ -338,6 +341,63 @@ export const TOOL_REGISTRY: Record<string, ToolRegistryEntry> = {
         'analyze_type_compatibility(from_type="string", to_type="object")',
         'analyze_type_compatibility(from_type="int", to_type="long", include_conversion_paths=true)',
         'analyze_type_compatibility(include_implicit_conversions=true)'
+      ]
+    }
+  },
+
+  track_assembly_metadata: {
+    factory: createAssemblyTrackerTool,
+    metadata: {
+      name: 'track_assembly_metadata',
+      category: 'analysis',
+      description: 'Track assembly metadata, version changes, and dependency analysis for IL2CPP dumps',
+      complexity: 'medium',
+      estimatedExecutionTime: '3-10 seconds',
+      requiredParameters: ['tracking_id'],
+      optionalParameters: ['content', 'file_path', 'comparison_mode', 'compare_with', 'include_dependencies', 'enable_caching', 'enable_performance_tracking', 'max_cache_size'],
+      outputFormat: 'JSON with assembly tracking results, version comparison, and dependency analysis',
+      examples: [
+        'track_assembly_metadata(tracking_id="build-v1-0-0", content="// IL2CPP dump...")',
+        'track_assembly_metadata(tracking_id="build-v1-1-0", file_path="/path/to/dump.cs", compare_with="build-v1-0-0")',
+        'track_assembly_metadata(tracking_id="build-v2-0-0", comparison_mode="versions_only", include_dependencies=true)'
+      ]
+    }
+  },
+
+  search_metadata: {
+    factory: createSearchMetadataTool,
+    metadata: {
+      name: 'search_metadata',
+      category: 'search',
+      description: 'Search through extracted metadata with flexible filtering and advanced options',
+      complexity: 'simple',
+      estimatedExecutionTime: '1-3 seconds',
+      requiredParameters: ['query'],
+      optionalParameters: ['search_type', 'assembly_name', 'assembly_version', 'assembly_culture', 'unity_version', 'platform', 'configuration', 'namespace_filter', 'include_generics', 'monobehaviour_only', 'base_class_filter', 'use_regex', 'case_sensitive', 'max_results', 'include_statistics'],
+      outputFormat: 'JSON with search results, metadata, and optional statistics',
+      examples: [
+        'search_metadata("Assembly-CSharp")',
+        'search_metadata("Player", search_type="type", namespace_filter="Game.Player")',
+        'search_metadata("Unity", search_type="assembly", unity_version="2022.3.15f1", include_statistics=true)'
+      ]
+    }
+  },
+
+  query_metadata: {
+    factory: createQueryMetadataTool,
+    metadata: {
+      name: 'query_metadata',
+      category: 'analysis',
+      description: 'Advanced metadata querying with complex filters, aggregations, and cross-references',
+      complexity: 'medium',
+      estimatedExecutionTime: '2-5 seconds',
+      requiredParameters: [],
+      optionalParameters: ['query', 'filters', 'aggregations', 'group_by_field', 'statistics_field', 'cross_reference', 'sort_by', 'sort_order', 'limit', 'offset', 'include_metadata', 'optimize_performance'],
+      outputFormat: 'JSON with query results, aggregations, cross-references, and execution metadata',
+      examples: [
+        'query_metadata(query="SELECT * FROM metadata WHERE type = \\"class\\"")',
+        'query_metadata(filters={type: "class", isMonoBehaviour: true}, aggregations=["count", "group_by"], group_by_field="namespace")',
+        'query_metadata(filters={}, cross_reference={from: "assembly", to: "class", relationship: "contains"})'
       ]
     }
   }

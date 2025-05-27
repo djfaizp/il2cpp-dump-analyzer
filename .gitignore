@@ -1,4 +1,5 @@
 # Dependency directories
+models/*
 node_modules/
 # Build output
 dist/
@@ -8,6 +9,7 @@ document-hashes.json
 .kilocode
 .augmentignore
 # Logs
+logs/*
 logs
 *.log
 npm-debug.log*
@@ -25,6 +27,7 @@ mcp-client-helper.js
 *.sln
 *.sw?
 .kilocode/*
+rules/*
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -57,3 +60,4 @@ test-*.cs
 # Local hash storage files
 .processed_*
 *-processed.json
+dump.cs
