@@ -5,7 +5,7 @@ import { IL2CPPDelegate, IL2CPPMethod, IL2CPPParameter, ClassInfo } from './enha
  * Handles delegates that inherit from MulticastDelegate or Delegate
  */
 export class DelegateParser {
-  
+
   /**
    * Parse a delegate from class declaration and body
    */
@@ -57,7 +57,7 @@ export class DelegateParser {
    * Check if the inheritance indicates a delegate type
    */
   private isDelegateType(inheritance: string): boolean {
-    return inheritance.includes('MulticastDelegate') || 
+    return inheritance.includes('MulticastDelegate') ||
            inheritance.includes('Delegate');
   }
 
@@ -67,14 +67,14 @@ export class DelegateParser {
   private parseDelegateName(fullName: string): { name: string; parentClass?: string } {
     // Handle nested delegates like "EventMgr.OnGesture"
     const dotIndex = fullName.lastIndexOf('.');
-    
+
     if (dotIndex > 0) {
       return {
         name: fullName.substring(dotIndex + 1),
         parentClass: fullName.substring(0, dotIndex)
       };
     }
-    
+
     return { name: fullName };
   }
 
@@ -83,28 +83,28 @@ export class DelegateParser {
    */
   private parseInvokeMethod(classBody: string): IL2CPPMethod | null {
     const lines = classBody.split('\n');
-    
+
     // Look for the Invoke method
     const invokeRegex = /^\s*(?:\/\/[^\n]*\n)?\s*public\s+virtual\s+([^\s]+)\s+Invoke\s*\(([^)]*)\)\s*\{\s*\}(?:\s*\/\/.*)?$/m;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       if (line.includes('public virtual') && line.includes('Invoke(')) {
         // Extract method signature
         const match = line.match(/public\s+virtual\s+([^\s]+)\s+Invoke\s*\(([^)]*)\)/);
         if (match) {
           const returnType = match[1];
           const parametersStr = match[2];
-          
+
           // Parse parameters
           const parameters = this.parseParameters(parametersStr);
-          
+
           // Extract RVA and offset from previous line if available
           let rva = '';
           let offset = '';
           let slot = '';
-          
+
           if (i > 0) {
             const prevLine = lines[i - 1].trim();
             const rvaMatch = prevLine.match(/RVA:\s*(0x[0-9A-F]+)\s+Offset:\s*(0x[0-9A-F]+)(?:\s+VA:\s*0x[0-9A-F]+)?(?:\s+Slot:\s*(\d+))?/);
@@ -114,7 +114,7 @@ export class DelegateParser {
               slot = rvaMatch[3] || '';
             }
           }
-          
+
           return {
             name: 'Invoke',
             returnType,
@@ -127,12 +127,12 @@ export class DelegateParser {
             attributes: [],
             rva,
             offset,
-            slot
+            slot: slot ? parseInt(slot, 10) : undefined
           };
         }
       }
     }
-    
+
     return null;
   }
 
@@ -141,15 +141,15 @@ export class DelegateParser {
    */
   private parseConstructorMethod(classBody: string): IL2CPPMethod | null {
     const lines = classBody.split('\n');
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       if (line.includes('public void .ctor(object object, IntPtr method)')) {
         // Extract RVA and offset from previous line if available
         let rva = '';
         let offset = '';
-        
+
         if (i > 0) {
           const prevLine = lines[i - 1].trim();
           const rvaMatch = prevLine.match(/RVA:\s*(0x[0-9A-F]+)\s+Offset:\s*(0x[0-9A-F]+)/);
@@ -158,7 +158,7 @@ export class DelegateParser {
             offset = rvaMatch[2];
           }
         }
-        
+
         return {
           name: '.ctor',
           returnType: 'void',
@@ -177,7 +177,7 @@ export class DelegateParser {
         };
       }
     }
-    
+
     return null;
   }
 
@@ -186,21 +186,21 @@ export class DelegateParser {
    */
   private parseBeginInvokeMethod(classBody: string): IL2CPPMethod | null {
     const lines = classBody.split('\n');
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       if (line.includes('public virtual IAsyncResult BeginInvoke(')) {
         const match = line.match(/public\s+virtual\s+IAsyncResult\s+BeginInvoke\s*\(([^)]*)\)/);
         if (match) {
           const parametersStr = match[1];
           const parameters = this.parseParameters(parametersStr);
-          
+
           // Extract RVA and offset
           let rva = '';
           let offset = '';
           let slot = '';
-          
+
           if (i > 0) {
             const prevLine = lines[i - 1].trim();
             const rvaMatch = prevLine.match(/RVA:\s*(0x[0-9A-F]+)\s+Offset:\s*(0x[0-9A-F]+)(?:\s+VA:\s*0x[0-9A-F]+)?(?:\s+Slot:\s*(\d+))?/);
@@ -210,7 +210,7 @@ export class DelegateParser {
               slot = rvaMatch[3] || '';
             }
           }
-          
+
           return {
             name: 'BeginInvoke',
             returnType: 'IAsyncResult',
@@ -223,12 +223,12 @@ export class DelegateParser {
             attributes: [],
             rva,
             offset,
-            slot
+            slot: slot ? parseInt(slot, 10) : undefined
           };
         }
       }
     }
-    
+
     return null;
   }
 
@@ -237,16 +237,16 @@ export class DelegateParser {
    */
   private parseEndInvokeMethod(classBody: string): IL2CPPMethod | null {
     const lines = classBody.split('\n');
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       if (line.includes('public virtual void EndInvoke(IAsyncResult result)')) {
         // Extract RVA and offset
         let rva = '';
         let offset = '';
         let slot = '';
-        
+
         if (i > 0) {
           const prevLine = lines[i - 1].trim();
           const rvaMatch = prevLine.match(/RVA:\s*(0x[0-9A-F]+)\s+Offset:\s*(0x[0-9A-F]+)(?:\s+VA:\s*0x[0-9A-F]+)?(?:\s+Slot:\s*(\d+))?/);
@@ -256,7 +256,7 @@ export class DelegateParser {
             slot = rvaMatch[3] || '';
           }
         }
-        
+
         return {
           name: 'EndInvoke',
           returnType: 'void',
@@ -269,11 +269,11 @@ export class DelegateParser {
           attributes: [],
           rva,
           offset,
-          slot
+          slot: slot ? parseInt(slot, 10) : undefined
         };
       }
     }
-    
+
     return null;
   }
 
@@ -297,8 +297,8 @@ export class DelegateParser {
       if (lastSpaceIndex !== -1) {
         const type = trimmed.substring(0, lastSpaceIndex).trim();
         const name = trimmed.substring(lastSpaceIndex + 1).trim();
-        parameters.push({ 
-          type, 
+        parameters.push({
+          type,
           name,
           isGeneric: this.isGenericType(type)
         });

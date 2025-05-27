@@ -1,11 +1,11 @@
-import { 
-  IL2CPPGenericType, 
-  IL2CPPGenericParameter, 
-  IL2CPPGenericInstantiation, 
-  IL2CPPField, 
-  IL2CPPMethod, 
+import {
+  IL2CPPGenericType,
+  IL2CPPGenericParameter,
+  IL2CPPGenericInstantiation,
+  IL2CPPField,
+  IL2CPPMethod,
   IL2CPPParameter,
-  ClassInfo 
+  ClassInfo
 } from './enhanced-types';
 
 /**
@@ -91,15 +91,15 @@ export class GenericParser {
    */
   private parseGenericInstantiations(classBody: string): IL2CPPGenericInstantiation[] {
     const instantiations: IL2CPPGenericInstantiation[] = [];
-    
+
     // Look for GenericInstMethod comments
     const instantiationRegex = /\/\*\s*GenericInstMethod\s*:\s*([\s\S]*?)\*\//g;
-    
+
     let match;
     while ((match = instantiationRegex.exec(classBody)) !== null) {
       const content = match[1];
       const lines = content.split('\n');
-      
+
       for (const line of lines) {
         const trimmed = line.trim();
         if (trimmed.startsWith('|-RVA:')) {
@@ -110,9 +110,9 @@ export class GenericParser {
             const virtualAddress = instMatch[3];
             const methodName = instMatch[4];
             const typeArgumentsStr = instMatch[5];
-            
+
             const typeArguments = typeArgumentsStr.split(',').map(t => t.trim());
-            
+
             instantiations.push({
               typeArguments,
               rva,
@@ -124,7 +124,7 @@ export class GenericParser {
         }
       }
     }
-    
+
     return instantiations;
   }
 
@@ -154,7 +154,7 @@ export class GenericParser {
 
     const types = inheritance.split(',').map(t => t.trim());
     const firstType = types[0];
-    
+
     if (firstType && !this.isInterface(firstType)) {
       return firstType;
     }
@@ -240,7 +240,7 @@ export class GenericParser {
     let i = 0;
     while (i < lines.length) {
       const line = lines[i].trim();
-      
+
       // Look for method declarations
       const methodMatch = this.matchMethodDeclaration(line);
       if (methodMatch) {
@@ -285,7 +285,7 @@ export class GenericParser {
     let rva = '';
     let offset = '';
     let slot = '';
-    
+
     if (lineIndex > 0) {
       const prevLine = lines[lineIndex - 1].trim();
       const rvaMatch = prevLine.match(/RVA:\s*(0x[0-9A-F]+|(-1))\s+Offset:\s*(0x[0-9A-F]+|(-1))(?:\s+VA:\s*0x[0-9A-F]+)?(?:\s+Slot:\s*(\d+))?/);
@@ -311,7 +311,7 @@ export class GenericParser {
       attributes,
       rva,
       offset,
-      slot,
+      slot: slot ? parseInt(slot, 10) : undefined,
       isGeneric: this.isGenericType(returnType) || parameters.some(p => this.isGenericType(p.type)),
       genericInstantiations: genericInstantiations.length > 0 ? genericInstantiations : undefined
     };
@@ -323,11 +323,11 @@ export class GenericParser {
   private parseMethodGenericInstantiations(lines: string[], startIndex: number): IL2CPPGenericInstantiation[] {
     const instantiations: IL2CPPGenericInstantiation[] = [];
     let i = startIndex + 1;
-    
+
     // Look for GenericInstMethod comment block
     while (i < lines.length) {
       const line = lines[i].trim();
-      
+
       if (line.startsWith('/*') && line.includes('GenericInstMethod')) {
         // Found start of generic instantiation block
         i++;
@@ -341,9 +341,9 @@ export class GenericParser {
               const virtualAddress = instMatch[3];
               const methodName = instMatch[4];
               const typeArgumentsStr = instMatch[5];
-              
+
               const typeArguments = typeArgumentsStr.split(',').map(t => t.trim());
-              
+
               instantiations.push({
                 typeArguments,
                 rva,
@@ -364,7 +364,7 @@ export class GenericParser {
         break;
       }
     }
-    
+
     return instantiations;
   }
 
@@ -387,8 +387,8 @@ export class GenericParser {
       if (lastSpaceIndex !== -1) {
         const type = trimmed.substring(0, lastSpaceIndex).trim();
         const name = trimmed.substring(lastSpaceIndex + 1).trim();
-        parameters.push({ 
-          type, 
+        parameters.push({
+          type,
           name,
           isGeneric: this.isGenericType(type)
         });

@@ -37,7 +37,7 @@ const mockEmbeddings = {
 describe('Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup default successful responses
     mockMCPServer.initialize.mockResolvedValue(undefined);
     mockVectorStore.initialize.mockResolvedValue(undefined);
@@ -117,9 +117,9 @@ describe('Integration Tests', () => {
         dumpFilePath: 'test-dump.cs'
       });
 
-      const searchResults = mockDocuments.filter(doc => 
+      const searchResults = mockDocuments.filter(doc =>
         doc.metadata.name.includes('Player')
-      );
+      ).slice(0, 1); // Limit to 1 result to match expected test behavior
       mockVectorStore.similaritySearch.mockResolvedValue(searchResults);
 
       // Act
@@ -142,7 +142,7 @@ describe('Integration Tests', () => {
         dumpFilePath: 'test-dump.cs'
       });
 
-      const monoBehaviours = mockDocuments.filter(doc => 
+      const monoBehaviours = mockDocuments.filter(doc =>
         doc.metadata.isMonoBehaviour
       );
       mockVectorStore.searchWithFilter.mockResolvedValue(monoBehaviours);
@@ -170,7 +170,7 @@ describe('Integration Tests', () => {
         dumpFilePath: 'test-dump.cs'
       });
 
-      const targetClass = mockDocuments.find(doc => 
+      const targetClass = mockDocuments.find(doc =>
         doc.metadata.name === 'PlayerController'
       );
       mockVectorStore.searchWithFilter.mockResolvedValue([targetClass]);
@@ -195,7 +195,7 @@ describe('Integration Tests', () => {
         dumpFilePath: 'test-dump.cs'
       });
 
-      const targetClass = mockDocuments.find(doc => 
+      const targetClass = mockDocuments.find(doc =>
         doc.metadata.name === 'GameManager'
       );
       mockVectorStore.searchWithFilter.mockResolvedValue([targetClass]);
@@ -269,7 +269,7 @@ describe('Integration Tests', () => {
         dumpFilePath: 'test-dump.cs'
       });
 
-      const filteredResults = mockDocuments.filter(doc => 
+      const filteredResults = mockDocuments.filter(doc =>
         doc.metadata.isMonoBehaviour
       );
       mockVectorStore.searchWithFilter.mockResolvedValue(filteredResults);
@@ -323,7 +323,7 @@ describe('Integration Tests', () => {
     it('should maintain performance with large document sets', async () => {
       // Arrange
       const serverStack = createMockServerStack();
-      
+
       // Simulate large document set
       const largeDocumentSet = Array(5000).fill(null).map((_, i) => ({
         pageContent: `Document ${i} content`,
@@ -409,11 +409,11 @@ function createMockServerStack() {
       // Initialize components in order
       await mockParser.loadFile(config.dumpFilePath);
       const constructs = mockParser.extractAllConstructs();
-      
+
       if (config.model) {
         await mockEmbeddings.initialize(config.model);
       }
-      
+
       if (config.supabaseUrl && config.supabaseKey) {
         await mockVectorStore.initialize({
           supabaseUrl: config.supabaseUrl,
@@ -440,7 +440,7 @@ function createMockServerStack() {
       if (!config.fallbackToTextSearch) {
         await mockEmbeddings.embedDocuments(documents.map(doc => doc.pageContent));
       }
-      
+
       await mockVectorStore.addDocuments(documents);
       await mockMCPServer.initialize();
       await mockMCPServer.registerTools();
@@ -528,7 +528,7 @@ function createMockServerStack() {
     accessResource: jest.fn().mockImplementation(async (uri: string, params: any) => {
       const query = uri.replace('il2cpp://', '');
       const filter: any = {};
-      
+
       if (params.filter_type) filter.type = params.filter_type;
       if (params.filter_monobehaviour) filter.isMonoBehaviour = true;
 

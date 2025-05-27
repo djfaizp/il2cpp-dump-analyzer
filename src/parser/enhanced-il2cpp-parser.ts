@@ -1,195 +1,352 @@
-import { IL2CPPDumpParser } from './il2cpp-parser';
-import { DelegateParser } from './delegate-parser';
-import { NestedTypeParser } from './nested-type-parser';
-import { GenericParser } from './generic-parser';
-import { AdvancedParser } from './advanced-parser';
+import * as fs from 'fs';
 import {
-  EnhancedParseResult,
-  ParseStatistics,
-  ClassInfo,
   IL2CPPClass,
   IL2CPPEnum,
   IL2CPPInterface,
+  IL2CPPField,
+  IL2CPPMethod,
+  IL2CPPParameter,
+  EnhancedParseResult,
+  ParseStatistics,
   IL2CPPDelegate,
   IL2CPPGenericType,
-  IL2CPPNestedType
+  IL2CPPNestedType,
+  IL2CPPProperty,
+  IL2CPPEvent,
+  IL2CPPConstant,
+  IL2CPPOperator,
+  IL2CPPIndexer,
+  IL2CPPDestructor,
+  IL2CPPExtensionMethod
 } from './enhanced-types';
 
 /**
- * Enhanced IL2CPP parser with support for delegates, nested types, and generics
- * Extends the base IL2CPPDumpParser with specialized parsing capabilities
+ * Enhanced IL2CPP Dump Parser
+ * Handles real IL2CPP dump format with comprehensive parsing capabilities
+ * Supports TypeDefIndex, RVA/Offset, attributes, generic types, and nested classes
  */
-export class EnhancedIL2CPPDumpParser extends IL2CPPDumpParser {
-  private enhancedParsers: {
-    delegate: DelegateParser;
-    nested: NestedTypeParser;
-    generic: GenericParser;
-    advanced: AdvancedParser;
-  };
+export class EnhancedIL2CPPParser {
+  private content: string = '';
+  private lines: string[] = [];
+  private imageMappings: Map<number, string> = new Map();
+  private parseErrors: string[] = [];
+  private loaded: boolean = false;
 
-  constructor() {
-    super();
-    this.enhancedParsers = {
-      delegate: new DelegateParser(),
-      nested: new NestedTypeParser(),
-      generic: new GenericParser(),
-      advanced: new AdvancedParser()
+  /**
+   * Load and parse an IL2CPP dump.cs file
+   * @param filePath Path to the dump.cs file
+   */
+  public async loadFile(filePath: string): Promise<void> {
+    try {
+      console.log('Reading file:', filePath);
+      const fileContent = await fs.promises.readFile(filePath, 'utf-8');
+      console.log('File content type:', typeof fileContent);
+      console.log('File content length:', fileContent ? fileContent.length : 'undefined');
+      console.log('First 100 chars:', fileContent ? fileContent.substring(0, 100) : 'undefined');
+
+      this.content = fileContent;
+      this.lines = this.content.split('\n');
+      this.parseErrors = [];
+      this.loaded = true;
+
+      // Parse the image map at the beginning of the file
+      this.parseImageMappings();
+    } catch (error) {
+      console.error('Error in loadFile:', error);
+      this.parseErrors.push(`Failed to load file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Load content directly from string (useful for testing)
+   * @param content IL2CPP dump content as string
+   */
+  public loadContent(content: string): void {
+    this.content = content;
+    this.lines = this.content.split('\n');
+    this.parseErrors = [];
+    this.loaded = true;
+
+    // Parse the image map at the beginning of the file
+    this.parseImageMappings();
+  }
+
+  /**
+   * Check if the parser has loaded content
+   */
+  public isLoaded(): boolean {
+    return this.loaded;
+  }
+
+  /**
+   * Extract all IL2CPP constructs from the loaded content
+   */
+  public extractAllConstructs(): EnhancedParseResult {
+    if (!this.loaded) {
+      throw new Error('Parser not loaded. Call loadFile() first.');
+    }
+
+    const classes = this.extractClasses();
+    const enums = this.extractEnums();
+    const interfaces = this.extractInterfaces();
+
+    // For now, return empty arrays for advanced constructs
+    // These will be implemented in future iterations
+    const delegates: IL2CPPDelegate[] = [];
+    const generics: IL2CPPGenericType[] = [];
+    const nestedTypes: IL2CPPNestedType[] = [];
+    const properties: IL2CPPProperty[] = [];
+    const events: IL2CPPEvent[] = [];
+    const constants: IL2CPPConstant[] = [];
+    const operators: IL2CPPOperator[] = [];
+    const indexers: IL2CPPIndexer[] = [];
+    const destructors: IL2CPPDestructor[] = [];
+    const extensionMethods: IL2CPPExtensionMethod[] = [];
+
+    const statistics = this.calculateStatistics(
+      classes,
+      enums,
+      interfaces,
+      delegates,
+      generics,
+      nestedTypes,
+      properties,
+      events,
+      constants,
+      operators,
+      indexers,
+      destructors,
+      extensionMethods
+    );
+
+    return {
+      classes,
+      enums,
+      interfaces,
+      delegates,
+      generics,
+      nestedTypes,
+      properties,
+      events,
+      constants,
+      operators,
+      indexers,
+      destructors,
+      extensionMethods,
+      imageMappings: this.imageMappings,
+      statistics
     };
   }
 
   /**
-   * Extract all constructs with enhanced parsing capabilities
+   * Parse image mappings from the beginning of the file
+   * Format: // Image 0: holo-game.dll - 0
    */
-  public extractAllConstructs(): EnhancedParseResult {
-    const result: EnhancedParseResult = {
-      classes: [],
-      enums: [],
-      interfaces: [],
-      delegates: [],
-      generics: [],
-      nestedTypes: [],
-      properties: [],
-      events: [],
-      constants: [],
-      operators: [],
-      indexers: [],
-      destructors: [],
-      extensionMethods: [],
-      statistics: {
-        totalConstructs: 0,
-        classCount: 0,
-        enumCount: 0,
-        interfaceCount: 0,
-        delegateCount: 0,
-        genericCount: 0,
-        nestedTypeCount: 0,
-        propertyCount: 0,
-        eventCount: 0,
-        constantCount: 0,
-        operatorCount: 0,
-        indexerCount: 0,
-        destructorCount: 0,
-        extensionMethodCount: 0,
-        compilerGeneratedCount: 0,
-        coveragePercentage: 0
-      }
-    };
+  private parseImageMappings(): void {
+    const imageRegex = /\/\/ Image (\d+): (.+?) - (\d+)/;
 
-    // Parse with enhanced capabilities
+    for (let i = 0; i < this.lines.length; i++) {
+      const line = this.lines[i];
+      const trimmedLine = line.trim();
+      const match = trimmedLine.match(imageRegex);
+      if (match) {
+        const imageIndex = parseInt(match[1]);
+        const imageName = match[2].trim();
+        this.imageMappings.set(imageIndex, imageName);
+      } else if (trimmedLine.startsWith('// Namespace:')) {
+        // Stop once we reach the first namespace declaration
+        break;
+      }
+    }
+
+  }
+
+  /**
+   * Extract all classes from the IL2CPP dump
+   */
+  private extractClasses(): IL2CPPClass[] {
+    const classes: IL2CPPClass[] = [];
+
+    let currentNamespace = '';
+    let i = 0;
+
+    while (i < this.lines.length) {
+      const line = this.lines[i].trim();
+      // Track namespace declarations
+      if (line.startsWith('// Namespace:')) {
+        currentNamespace = line.substring('// Namespace:'.length).trim();
+        i++;
+        continue;
+      }
+
+      // Look for class/struct declarations with TypeDefIndex
+      // Real format: [Serializable] public struct CustomAttackAnimOverrideConfig.OverrideConfig // TypeDefIndex: 5
+      if (line.includes('TypeDefIndex:') && /\b(class|struct|interface)\b/.test(line)) {
+        try {
+          // Extract TypeDefIndex
+          const typeDefMatch = line.match(/TypeDefIndex:\s*(\d+)/);
+          const typeDefIndex = typeDefMatch ? parseInt(typeDefMatch[1]) : 0;
+
+          // Look for attributes on preceding lines
+          let attributesStr = '';
+          let attributeLineIndex = i - 1;
+          while (attributeLineIndex >= 0) {
+            const prevLine = this.lines[attributeLineIndex].trim();
+            if (prevLine.startsWith('[') && prevLine.endsWith(']')) {
+              attributesStr = prevLine + ' ' + attributesStr;
+              attributeLineIndex--;
+            } else if (prevLine === '' || prevLine.startsWith('// Namespace:')) {
+              // Stop at empty lines or namespace declarations
+              break;
+            } else {
+              break;
+            }
+          }
+
+          // Also check for attributes on the same line (inline attributes)
+          const inlineAttributeMatch = line.match(/^((?:\[.*?\]\s*)*)/);
+          if (inlineAttributeMatch && inlineAttributeMatch[1]) {
+            attributesStr = inlineAttributeMatch[1] + ' ' + attributesStr;
+          }
+
+          // Parse class declaration - handle the format before the TypeDefIndex comment
+          const beforeComment = line.split('//')[0].trim();
+          const classMatch = beforeComment.match(/(public|internal|private|protected)?\s*(sealed\s+)?(static\s+)?(abstract\s+)?(class|struct|interface)\s+([^\s:]+)(?:\s*:\s*(.+))?/);
+
+          if (classMatch) {
+            const accessModifier = classMatch[1] || 'internal';
+            const classType = classMatch[5];
+            const className = classMatch[6];
+            const inheritance = classMatch[7] ? classMatch[7].trim() : '';
+
+            // Find the class body
+            const { startLine, endLine } = this.findClassBody(i);
+
+            if (endLine > startLine) {
+              const classBody = this.lines.slice(startLine, endLine).join('\n');
+
+              // Parse class components
+              const attributes = this.parseAttributes(attributesStr);
+              const baseClass = this.parseBaseClass(inheritance);
+              const interfaces = this.parseInterfaces(inheritance);
+              const fields = this.parseFields(classBody);
+              const methods = this.parseMethods(classBody);
+
+              // Determine class properties
+              const isStruct = classType === 'struct';
+              const isMonoBehaviour = inheritance.includes('MonoBehaviour');
+
+              classes.push({
+                name: className,
+                namespace: currentNamespace,
+                fullName: currentNamespace ? `${currentNamespace}.${className}` : className,
+                baseClass,
+                interfaces,
+                fields,
+                methods,
+                isMonoBehaviour,
+                isStruct,
+                typeDefIndex,
+                attributes
+              });
+
+              i = endLine;
+            } else {
+              i++;
+            }
+          } else {
+            i++;
+          }
+        } catch (error) {
+          this.parseErrors.push(`Error parsing class at line ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          i++;
+        }
+      } else {
+        // Check for malformed class declarations (class/struct/interface without TypeDefIndex)
+        if (/\b(class|struct|interface)\b/.test(line) && !line.includes('TypeDefIndex:')) {
+          // This might be a malformed class declaration
+          const beforeComment = line.split('//')[0].trim();
+          const malformedMatch = beforeComment.match(/(public|internal|private|protected)?\s*(sealed\s+)?(static\s+)?(abstract\s+)?(class|struct|interface)\s*([^\s:]*)/);
+
+          if (malformedMatch) {
+            const className = malformedMatch[6];
+            if (!className || className.includes('{') || className.includes('}')) {
+              this.parseErrors.push(`Malformed class declaration at line ${i + 1}: missing or invalid class name`);
+            }
+          }
+        }
+
+        // Check for malformed method declarations
+        if (line.includes('(') && !line.includes(')') && !line.includes('//')) {
+          this.parseErrors.push(`Malformed method declaration at line ${i + 1}: missing closing parenthesis`);
+        }
+
+        i++;
+      }
+    }
+
+    return classes;
+  }
+
+  /**
+   * Extract all enums from the IL2CPP dump
+   */
+  private extractEnums(): IL2CPPEnum[] {
+    const enums: IL2CPPEnum[] = [];
+
     let currentNamespace = '';
     let i = 0;
 
     while (i < this.lines.length) {
       const line = this.lines[i].trim();
 
+      // Track namespace declarations
       if (line.startsWith('// Namespace:')) {
-        currentNamespace = this.updateNamespace(line);
+        currentNamespace = line.substring('// Namespace:'.length).trim();
         i++;
         continue;
       }
 
-      // Enhanced class parsing
-      const classMatch = this.matchClassDeclaration(line);
-      if (classMatch) {
-        const classInfo = this.extractClassInfo(classMatch, i, currentNamespace);
-        if (classInfo) {
-          const constructType = this.determineConstructType(classInfo);
+      // Look for enum declarations with TypeDefIndex
+      // Real format: public enum CameraFacingBillboardWithConstraints.LockAxis // TypeDefIndex: 7
+      if (line.includes('TypeDefIndex:') && /\benum\b/.test(line)) {
+        try {
+          // Extract TypeDefIndex
+          const typeDefMatch = line.match(/TypeDefIndex:\s*(\d+)/);
+          const typeDefIndex = typeDefMatch ? parseInt(typeDefMatch[1]) : 0;
 
-          switch (constructType) {
-            case 'delegate':
-              const delegate = this.enhancedParsers.delegate.parseDelegate(classInfo);
-              if (delegate) {
-                result.delegates.push(delegate);
-                result.statistics.delegateCount++;
-              }
-              break;
+          // Parse enum declaration - handle the format before the TypeDefIndex comment
+          const beforeComment = line.split('//')[0].trim();
+          const enumMatch = beforeComment.match(/(public|internal|private|protected)?\s*enum\s+([^\s]+)/);
 
-            case 'generic':
-              const generic = this.enhancedParsers.generic.parseGenericType(classInfo);
-              if (generic) {
-                result.generics.push(generic);
-                result.statistics.genericCount++;
-                
-                // Also extract nested types from generic classes
-                const nestedTypes = this.enhancedParsers.nested.parseNestedTypes(
-                  classInfo.body, 
-                  classInfo.name, 
-                  currentNamespace
-                );
-                result.nestedTypes.push(...nestedTypes);
-                result.statistics.nestedTypeCount += nestedTypes.length;
-              }
-              break;
+          if (enumMatch) {
+            const enumName = enumMatch[2];
 
-            case 'enum':
-              const enumEntity = this.parseEnhancedEnum(classInfo, currentNamespace);
-              if (enumEntity) {
-                result.enums.push(enumEntity);
-                result.statistics.enumCount++;
-              }
-              break;
+            // Find the enum body
+            const { startLine, endLine } = this.findClassBody(i);
 
-            case 'interface':
-              const interfaceEntity = this.parseEnhancedInterface(classInfo, currentNamespace);
-              if (interfaceEntity) {
-                result.interfaces.push(interfaceEntity);
-                result.statistics.interfaceCount++;
-              }
-              break;
+            if (endLine > startLine) {
+              const enumBody = this.lines.slice(startLine, endLine).join('\n');
+              const values = this.parseEnumValues(enumBody);
 
-            case 'class':
-            default:
-              const classEntity = this.parseEnhancedClass(classInfo, currentNamespace);
-              if (classEntity) {
-                result.classes.push(classEntity);
-                result.statistics.classCount++;
+              enums.push({
+                name: enumName,
+                namespace: currentNamespace,
+                fullName: currentNamespace ? `${currentNamespace}.${enumName}` : enumName,
+                values,
+                typeDefIndex
+              });
 
-                // Extract nested types
-                const nestedTypes = this.enhancedParsers.nested.parseNestedTypes(
-                  classInfo.body,
-                  classInfo.name,
-                  currentNamespace
-                );
-                result.nestedTypes.push(...nestedTypes);
-                result.statistics.nestedTypeCount += nestedTypes.length;
-
-                // Extract advanced constructs
-                const properties = this.enhancedParsers.advanced.parseProperties(classInfo.body);
-                result.properties.push(...properties);
-                result.statistics.propertyCount += properties.length;
-
-                const events = this.enhancedParsers.advanced.parseEvents(classInfo.body);
-                result.events.push(...events);
-                result.statistics.eventCount += events.length;
-
-                const constants = this.enhancedParsers.advanced.parseConstants(classInfo.body);
-                result.constants.push(...constants);
-                result.statistics.constantCount += constants.length;
-
-                const operators = this.enhancedParsers.advanced.parseOperators(classInfo.body);
-                result.operators.push(...operators);
-                result.statistics.operatorCount += operators.length;
-
-                const indexers = this.enhancedParsers.advanced.parseIndexers(classInfo.body);
-                result.indexers.push(...indexers);
-                result.statistics.indexerCount += indexers.length;
-
-                const destructors = this.enhancedParsers.advanced.parseDestructors(classInfo.body);
-                result.destructors.push(...destructors);
-                result.statistics.destructorCount += destructors.length;
-
-                // Extract extension methods from class methods
-                if (classEntity.methods) {
-                  const extensionMethods = this.enhancedParsers.advanced.parseExtensionMethods(classEntity.methods);
-                  result.extensionMethods.push(...extensionMethods);
-                  result.statistics.extensionMethodCount += extensionMethods.length;
-                }
-              }
-              break;
+              i = endLine;
+            } else {
+              i++;
+            }
+          } else {
+            i++;
           }
-
-          i = classInfo.endLine;
-        } else {
+        } catch (error) {
+          this.parseErrors.push(`Error parsing enum at line ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
           i++;
         }
       } else {
@@ -197,65 +354,73 @@ export class EnhancedIL2CPPDumpParser extends IL2CPPDumpParser {
       }
     }
 
-    // Calculate statistics
-    this.calculateStatistics(result);
-
-    return result;
+    return enums;
   }
 
   /**
-   * Update current namespace from namespace declaration
+   * Extract all interfaces from the IL2CPP dump
    */
-  private updateNamespace(line: string): string {
-    return line.substring('// Namespace:'.length).trim();
+  private extractInterfaces(): IL2CPPInterface[] {
+    const interfaces: IL2CPPInterface[] = [];
+    const interfaceRegex = /^(public|internal|private|protected)?\s*interface\s+([^\s{]+)\s*\/\/\s*TypeDefIndex:\s*(\d+)/;
+
+    let currentNamespace = '';
+    let i = 0;
+
+    while (i < this.lines.length) {
+      const line = this.lines[i].trim();
+
+      // Track namespace declarations
+      if (line.startsWith('// Namespace:')) {
+        currentNamespace = line.substring('// Namespace:'.length).trim();
+        i++;
+        continue;
+      }
+
+      // Look for interface declarations
+      const interfaceMatch = line.match(interfaceRegex);
+      if (interfaceMatch) {
+        try {
+          const interfaceName = interfaceMatch[2];
+          const typeDefIndex = parseInt(interfaceMatch[3]);
+
+          // Find the interface body
+          const { startLine, endLine } = this.findClassBody(i);
+
+          if (endLine > startLine) {
+            const interfaceBody = this.lines.slice(startLine, endLine).join('\n');
+            const methods = this.parseMethods(interfaceBody);
+
+            interfaces.push({
+              name: interfaceName,
+              namespace: currentNamespace,
+              fullName: currentNamespace ? `${currentNamespace}.${interfaceName}` : interfaceName,
+              methods,
+              typeDefIndex
+            });
+
+            i = endLine;
+          } else {
+            i++;
+          }
+        } catch (error) {
+          this.parseErrors.push(`Error parsing interface at line ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          i++;
+        }
+      } else {
+        i++;
+      }
+    }
+
+    return interfaces;
   }
 
   /**
-   * Match class declarations with enhanced pattern matching
+   * Find the body of a class/enum/interface by matching braces
    */
-  private matchClassDeclaration(line: string): RegExpMatchArray | null {
-    // Enhanced regex to handle various class declaration patterns
-    const classRegex = /^((?:\[.*?\]\s*)*)?\s*(public|internal|private|protected)?\s*(sealed|static|abstract)?\s*(class|struct|enum|interface)\s+([^:\s{]+)(?:\s*:\s*([^{\/]+))?(?:\s*\/\/\s*TypeDefIndex:\s*(\d+))?/;
-    return line.match(classRegex);
-  }
-
-  /**
-   * Extract comprehensive class information
-   */
-  private extractClassInfo(match: RegExpMatchArray, startIndex: number, currentNamespace: string): ClassInfo | null {
-    const attributesStr = match[1] || '';
-    const accessModifier = match[2] || 'internal';
-    const modifiers = match[3] || '';
-    const typeKind = match[4];
-    const className = match[5];
-    const inheritance = match[6] || '';
-    const typeDefIndex = parseInt(match[7] || '0');
-
-    // Find the class body
-    const bodyInfo = this.extractClassBody(startIndex);
-    if (!bodyInfo) return null;
-
-    // Parse attributes
-    const attributes = this.parseAttributesFromString(attributesStr);
-
-    return {
-      name: className,
-      declaration: this.lines[startIndex],
-      inheritance,
-      body: bodyInfo.body,
-      startLine: startIndex,
-      endLine: bodyInfo.endLine,
-      accessModifier,
-      typeDefIndex,
-      attributes
-    };
-  }
-
-  /**
-   * Extract class body with proper brace matching
-   */
-  private extractClassBody(startIndex: number): { body: string; endLine: number } | null {
+  private findClassBody(startIndex: number): { startLine: number; endLine: number } {
     let braceCount = 0;
+    let startLine = startIndex;
     let endLine = startIndex;
 
     // Find the opening brace
@@ -263,147 +428,38 @@ export class EnhancedIL2CPPDumpParser extends IL2CPPDumpParser {
       endLine++;
     }
 
-    if (endLine >= this.lines.length) return null;
+    if (endLine < this.lines.length) {
+      const openingLine = this.lines[endLine];
 
-    braceCount = 1;
-    endLine++;
+      // Check if both opening and closing braces are on the same line (e.g., "{}")
+      const openBraces = (openingLine.match(/{/g) || []).length;
+      const closeBraces = (openingLine.match(/}/g) || []).length;
 
-    // Find the matching closing brace
-    while (endLine < this.lines.length && braceCount > 0) {
-      const currentLine = this.lines[endLine];
-      braceCount += (currentLine.match(/{/g) || []).length;
-      braceCount -= (currentLine.match(/}/g) || []).length;
+      if (openBraces === closeBraces && openBraces > 0) {
+        // Both braces on same line - this is an empty class body
+        return { startLine, endLine: endLine + 1 };
+      }
+
+      // Normal case: braces on separate lines
+      braceCount = openBraces;
       endLine++;
+
+      // Find the matching closing brace
+      while (endLine < this.lines.length && braceCount > 0) {
+        const currentLine = this.lines[endLine];
+        braceCount += (currentLine.match(/{/g) || []).length;
+        braceCount -= (currentLine.match(/}/g) || []).length;
+        endLine++;
+      }
     }
 
-    if (braceCount !== 0) return null;
-
-    const body = this.lines.slice(startIndex, endLine).join('\n');
-    return { body, endLine };
-  }
-
-  /**
-   * Determine the type of construct being parsed
-   */
-  private determineConstructType(classInfo: ClassInfo): 'class' | 'delegate' | 'generic' | 'enum' | 'interface' {
-    // Check for delegate inheritance
-    if (classInfo.inheritance.includes('MulticastDelegate') || classInfo.inheritance.includes('Delegate')) {
-      return 'delegate';
-    }
-
-    // Check for generic type
-    if (classInfo.name.includes('<') && classInfo.name.includes('>')) {
-      return 'generic';
-    }
-
-    // Check for enum
-    if (classInfo.declaration.includes('enum ')) {
-      return 'enum';
-    }
-
-    // Check for interface
-    if (classInfo.declaration.includes('interface ')) {
-      return 'interface';
-    }
-
-    return 'class';
-  }
-
-  /**
-   * Parse enhanced class with additional metadata
-   */
-  private parseEnhancedClass(classInfo: ClassInfo, currentNamespace: string): IL2CPPClass | null {
-    // Parse inheritance
-    const baseClass = this.parseBaseClass(classInfo.inheritance);
-    const interfaces = this.parseInterfaces(classInfo.inheritance);
-
-    // Parse fields and methods using existing methods
-    const fields = this.parseFields(classInfo.body);
-    const methods = this.parseMethods(classInfo.body);
-
-    // Determine if this is a MonoBehaviour
-    const isMonoBehaviour = classInfo.inheritance.includes('MonoBehaviour');
-
-    return {
-      name: classInfo.name,
-      namespace: currentNamespace,
-      fullName: currentNamespace ? `${currentNamespace}.${classInfo.name}` : classInfo.name,
-      baseClass,
-      interfaces,
-      fields,
-      methods,
-      isMonoBehaviour,
-      typeDefIndex: classInfo.typeDefIndex,
-      isNested: classInfo.name.includes('.'),
-      parentType: this.extractParentType(classInfo.name),
-      isCompilerGenerated: this.isCompilerGenerated(classInfo.attributes),
-      accessModifier: classInfo.accessModifier,
-      attributes: classInfo.attributes
-    };
-  }
-
-  /**
-   * Parse enhanced enum with additional metadata
-   */
-  private parseEnhancedEnum(classInfo: ClassInfo, currentNamespace: string): IL2CPPEnum | null {
-    // Parse enum values
-    const values = this.parseEnumValues(classInfo.body);
-
-    return {
-      name: classInfo.name,
-      namespace: currentNamespace,
-      fullName: currentNamespace ? `${currentNamespace}.${classInfo.name}` : classInfo.name,
-      values,
-      typeDefIndex: classInfo.typeDefIndex,
-      isNested: classInfo.name.includes('.'),
-      parentType: this.extractParentType(classInfo.name),
-      accessModifier: classInfo.accessModifier,
-      attributes: classInfo.attributes
-    };
-  }
-
-  /**
-   * Parse enhanced interface with additional metadata
-   */
-  private parseEnhancedInterface(classInfo: ClassInfo, currentNamespace: string): IL2CPPInterface | null {
-    // Parse methods
-    const methods = this.parseMethods(classInfo.body);
-
-    return {
-      name: classInfo.name,
-      namespace: currentNamespace,
-      fullName: currentNamespace ? `${currentNamespace}.${classInfo.name}` : classInfo.name,
-      methods,
-      typeDefIndex: classInfo.typeDefIndex,
-      isNested: classInfo.name.includes('.'),
-      parentType: this.extractParentType(classInfo.name),
-      accessModifier: classInfo.accessModifier,
-      attributes: classInfo.attributes
-    };
-  }
-
-  /**
-   * Extract parent type from nested type name
-   */
-  private extractParentType(fullName: string): string | undefined {
-    const dotIndex = fullName.lastIndexOf('.');
-    if (dotIndex > 0) {
-      return fullName.substring(0, dotIndex);
-    }
-    return undefined;
-  }
-
-  /**
-   * Check if the type is compiler generated
-   */
-  private isCompilerGenerated(attributes: string[]): boolean {
-    return attributes.some(attr => attr.includes('CompilerGenerated'));
+    return { startLine, endLine };
   }
 
   /**
    * Parse attributes from attribute string
    */
-  private parseAttributesFromString(attributesStr: string): string[] {
+  private parseAttributes(attributesStr: string): string[] {
     if (!attributesStr) return [];
 
     const attributes: string[] = [];
@@ -412,120 +468,322 @@ export class EnhancedIL2CPPDumpParser extends IL2CPPDumpParser {
 
     while ((match = attrRegex.exec(attributesStr)) !== null) {
       const attrContent = match[1].trim();
-      attributes.push(attrContent);
+      // Extract the attribute name (before any parentheses or parameters)
+      const attrName = attrContent.split('(')[0].trim();
+      attributes.push(attrName);
     }
 
     return attributes;
   }
 
   /**
-   * Calculate parsing statistics
+   * Parse base class from inheritance string
    */
-  private calculateStatistics(result: EnhancedParseResult): void {
-    const stats = result.statistics;
-    
-    // Count compiler-generated types
-    stats.compilerGeneratedCount = 
-      result.classes.filter(c => c.isCompilerGenerated).length +
-      result.delegates.filter(d => d.isCompilerGenerated).length +
-      result.generics.filter(g => g.isCompilerGenerated).length +
-      result.nestedTypes.filter(n => n.isCompilerGenerated).length;
+  private parseBaseClass(inheritance: string): string | undefined {
+    if (!inheritance) return undefined;
 
-    // Calculate total constructs including all advanced constructs
-    stats.totalConstructs =
-      stats.classCount +
-      stats.enumCount +
-      stats.interfaceCount +
-      stats.delegateCount +
-      stats.genericCount +
-      stats.nestedTypeCount +
-      stats.propertyCount +
-      stats.eventCount +
-      stats.constantCount +
-      stats.operatorCount +
-      stats.indexerCount +
-      stats.destructorCount +
-      stats.extensionMethodCount;
-
-    // Calculate coverage percentage based on comprehensive parsing improvements
-    if (stats.totalConstructs > 0) {
-      // Base coverage from original parser (classes, enums, interfaces only)
-      const baseConstructs = stats.classCount + stats.enumCount + stats.interfaceCount;
-      const baselineCoverage = 60; // Original parser baseline
-      
-      // All enhanced constructs that were previously missed
-      const enhancedConstructs =
-        stats.delegateCount +
-        stats.genericCount +
-        stats.nestedTypeCount +
-        stats.propertyCount +
-        stats.eventCount +
-        stats.constantCount +
-        stats.operatorCount +
-        stats.indexerCount +
-        stats.destructorCount +
-        stats.extensionMethodCount;
-      
-      // Calculate improvement ratio - how many enhanced constructs vs base constructs
-      const improvementRatio = enhancedConstructs / Math.max(baseConstructs, 1);
-      
-      // Enhanced coverage calculation
-      // Each category of enhanced constructs contributes to coverage improvement
-      let coverageBonus = 0;
-      
-      // Major construct types (higher weight)
-      if (stats.delegateCount > 0) coverageBonus += 5;
-      if (stats.genericCount > 0) coverageBonus += 8;
-      if (stats.nestedTypeCount > 0) coverageBonus += 10;
-      
-      // Advanced construct types (medium weight)
-      if (stats.propertyCount > 0) coverageBonus += 3;
-      if (stats.eventCount > 0) coverageBonus += 2;
-      if (stats.operatorCount > 0) coverageBonus += 2;
-      
-      // Specialized construct types (lower weight)
-      if (stats.constantCount > 0) coverageBonus += 1;
-      if (stats.indexerCount > 0) coverageBonus += 1;
-      if (stats.destructorCount > 0) coverageBonus += 1;
-      if (stats.extensionMethodCount > 0) coverageBonus += 2;
-      
-      // Additional bonus based on volume of enhanced constructs
-      const volumeBonus = Math.min(10, (enhancedConstructs / Math.max(baseConstructs, 1)) * 5);
-      
-      stats.coveragePercentage = Math.min(95, baselineCoverage + coverageBonus + volumeBonus);
+    const parts = inheritance.split(',').map(p => p.trim());
+    if (parts.length > 0) {
+      const baseClass = parts[0];
+      // Filter out interface names (typically start with 'I' and are capitalized)
+      if (!baseClass.match(/^I[A-Z]/)) {
+        return baseClass;
+      }
     }
+
+    return undefined;
   }
 
   /**
-   * Get parsing statistics
+   * Parse interfaces from inheritance string
    */
-  public getStatistics(): ParseStatistics {
-    const result = this.extractAllConstructs();
-    return result.statistics;
+  private parseInterfaces(inheritance: string): string[] {
+    if (!inheritance) return [];
+
+    const parts = inheritance.split(',').map(p => p.trim());
+    // Skip the first part if it's a base class, return the rest as interfaces
+    return parts.slice(1);
   }
 
   /**
-   * Search for constructs by name with type filtering
+   * Parse fields from class body
    */
-  public searchConstructs(query: string, types?: string[]): any[] {
-    const result = this.extractAllConstructs();
-    const allConstructs: any[] = [
-      ...result.classes,
-      ...result.enums,
-      ...result.interfaces,
-      ...result.delegates,
-      ...result.generics,
-      ...result.nestedTypes
-    ];
+  private parseFields(classBody: string): IL2CPPField[] {
+    const fields: IL2CPPField[] = [];
+    const lines = classBody.split('\n');
 
-    return allConstructs.filter(construct => {
-      const nameMatch = construct.name.toLowerCase().includes(query.toLowerCase()) ||
-                       construct.fullName.toLowerCase().includes(query.toLowerCase());
-      
-      if (!types || types.length === 0) return nameMatch;
-      
-      // Type filtering logic would go here
-      return nameMatch;
-    });
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+
+      // Skip comments, empty lines, and method declarations
+      if (trimmedLine.startsWith('//') || !trimmedLine || trimmedLine.includes('(') || trimmedLine.includes('RVA:')) continue;
+
+      // Field regex for real IL2CPP format: public float pixelScale; // 0x20
+      const fieldRegex = /^(public|private|protected|internal)?\s*(static\s+)?(readonly\s+)?([^;]+?)\s+([^;\s]+);\s*\/\/\s*(0x[0-9A-Fa-f]+)/;
+      const match = trimmedLine.match(fieldRegex);
+
+      if (match) {
+        try {
+          // Look for attributes on preceding lines
+          let attributesStr = '';
+          let attributeLineIndex = i - 1;
+          while (attributeLineIndex >= 0) {
+            const prevLine = lines[attributeLineIndex].trim();
+            if (prevLine.startsWith('[') && prevLine.endsWith(']')) {
+              attributesStr = prevLine + ' ' + attributesStr;
+              attributeLineIndex--;
+            } else if (prevLine === '' || prevLine.startsWith('//')) {
+              // Stop at empty lines or comments
+              break;
+            } else {
+              break;
+            }
+          }
+
+          const accessModifier = match[1] || 'private';
+          const isStatic = !!match[2];
+          const isReadOnly = !!match[3];
+          const fieldType = match[4].trim();
+          const fieldName = match[5];
+          const offset = match[6];
+
+          const attributes = this.parseAttributes(attributesStr);
+
+          fields.push({
+            name: fieldName,
+            type: fieldType,
+            isPublic: accessModifier === 'public',
+            isPrivate: accessModifier === 'private',
+            isStatic,
+            isReadOnly,
+            attributes,
+            offset
+          });
+        } catch (error) {
+          this.parseErrors.push(`Error parsing field: ${trimmedLine}`);
+        }
+      }
+    }
+
+    return fields;
+  }
+
+  /**
+   * Parse methods from class body
+   */
+  private parseMethods(classBody: string): IL2CPPMethod[] {
+    const methods: IL2CPPMethod[] = [];
+    const lines = classBody.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+
+      // Look for RVA comment lines that indicate method declarations
+      // Real format: // RVA: 0x5BE44A0 Offset: 0x5BE34A0 VA: 0x5BE44A0
+      const rvaRegex = /^\/\/\s*RVA:\s*(0x[0-9A-Fa-f]+)\s*Offset:\s*(0x[0-9A-Fa-f]+)\s*VA:\s*(0x[0-9A-Fa-f]+)(?:\s*Slot:\s*(\d+))?/;
+      const rvaMatch = trimmedLine.match(rvaRegex);
+
+      if (rvaMatch) {
+        const rva = rvaMatch[1];
+        const offset = rvaMatch[2];
+        const slot = rvaMatch[4] ? parseInt(rvaMatch[4]) : undefined;
+
+        // Look for the method declaration on the next line
+        if (i + 1 < lines.length) {
+          const methodLine = lines[i + 1].trim();
+
+          // Real format: public void .ctor() { }
+          // Real format: private void LateUpdate() { }
+          // Real format: public T GetComponent<T>() where T : Component { }
+          const methodRegex = /^(public|private|protected|internal)?\s*(override\s+)?(static\s+)?(virtual\s+)?(abstract\s+)?([^(]+?)\s+([^(]+)\((.*?)\)\s*(?:where\s+(.+?))?\s*\{/;
+          const methodMatch = methodLine.match(methodRegex);
+
+          if (methodMatch) {
+            try {
+              const accessModifier = methodMatch[1] || 'private';
+              const isOverride = !!methodMatch[2];
+              const isStatic = !!methodMatch[3];
+              const isVirtual = !!methodMatch[4];
+              const isAbstract = !!methodMatch[5];
+              const returnType = methodMatch[6].trim();
+              let methodName = methodMatch[7];
+              const parametersStr = methodMatch[8];
+              const whereClause = methodMatch[9];
+
+              // Parse generic constraints
+              let isGeneric = false;
+              let genericConstraints = '';
+              if (methodName.includes('<') && methodName.includes('>')) {
+                isGeneric = true;
+                // Extract the base method name (without generic type parameters)
+                methodName = methodName.split('<')[0];
+                if (whereClause) {
+                  genericConstraints = `where ${whereClause}`;
+                }
+              }
+
+              const parameters = this.parseParameters(parametersStr);
+
+              methods.push({
+                name: methodName,
+                returnType,
+                parameters,
+                isPublic: accessModifier === 'public',
+                isPrivate: accessModifier === 'private',
+                isStatic,
+                isVirtual,
+                isAbstract,
+                isOverride,
+                isGeneric,
+                genericConstraints,
+                slot,
+                attributes: [], // Would need to parse method attributes
+                rva,
+                offset
+              });
+            } catch (error) {
+              this.parseErrors.push(`Error parsing method: ${methodLine}`);
+            }
+          }
+        }
+      }
+    }
+
+    return methods;
+  }
+
+  /**
+   * Parse method parameters
+   */
+  private parseParameters(parametersStr: string): IL2CPPParameter[] {
+    if (!parametersStr || parametersStr.trim() === '') return [];
+
+    const parameters: IL2CPPParameter[] = [];
+    const paramParts = parametersStr.split(',');
+
+    for (const part of paramParts) {
+      const trimmed = part.trim();
+      if (trimmed) {
+        const paramRegex = /^([^=]+?)(\s*=\s*(.+))?$/;
+        const match = trimmed.match(paramRegex);
+
+        if (match) {
+          const typeAndName = match[1].trim();
+          const defaultValue = match[3];
+
+          // Split type and name
+          const parts = typeAndName.split(/\s+/);
+          if (parts.length >= 2) {
+            const type = parts.slice(0, -1).join(' ');
+            const name = parts[parts.length - 1];
+
+            parameters.push({
+              name,
+              type
+            });
+          }
+        }
+      }
+    }
+
+    return parameters;
+  }
+
+  /**
+   * Parse enum values from enum body
+   */
+  private parseEnumValues(enumBody: string): Array<{ name: string; value: string }> {
+    const values: Array<{ name: string; value: string }> = [];
+    const lines = enumBody.split('\n');
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+
+      // Skip comments and empty lines
+      if (trimmedLine.startsWith('//') || !trimmedLine) continue;
+
+      // Enum value regex: public const EnumType VALUE_NAME = value;
+      const enumValueRegex = /^public\s+const\s+[^=]+\s+([^=\s]+)\s*=\s*([^;]+);/;
+      const match = trimmedLine.match(enumValueRegex);
+
+      if (match) {
+        const name = match[1];
+        const value = match[2].trim();
+        values.push({ name, value });
+      }
+    }
+
+    return values;
+  }
+
+  /**
+   * Calculate comprehensive parsing statistics
+   */
+  private calculateStatistics(
+    classes: IL2CPPClass[],
+    enums: IL2CPPEnum[],
+    interfaces: IL2CPPInterface[],
+    delegates: IL2CPPDelegate[],
+    generics: IL2CPPGenericType[],
+    nestedTypes: IL2CPPNestedType[],
+    properties: IL2CPPProperty[],
+    events: IL2CPPEvent[],
+    constants: IL2CPPConstant[],
+    operators: IL2CPPOperator[],
+    indexers: IL2CPPIndexer[],
+    destructors: IL2CPPDestructor[],
+    extensionMethods: IL2CPPExtensionMethod[]
+  ): ParseStatistics {
+    const totalConstructs = classes.length + enums.length + interfaces.length +
+                           delegates.length + generics.length + nestedTypes.length +
+                           properties.length + events.length + constants.length +
+                           operators.length + indexers.length + destructors.length +
+                           extensionMethods.length;
+
+    const methodCount = classes.reduce((sum, cls) => sum + cls.methods.length, 0) +
+                      interfaces.reduce((sum, iface) => sum + iface.methods.length, 0) +
+                      generics.reduce((sum, gen) => sum + gen.methods.length, 0) +
+                      nestedTypes.reduce((sum, nested) => sum + nested.methods.length, 0) +
+                      extensionMethods.length;
+
+    const fieldCount = classes.reduce((sum, cls) => sum + cls.fields.length, 0) +
+                      generics.reduce((sum, gen) => sum + gen.fields.length, 0) +
+                      nestedTypes.reduce((sum, nested) => sum + nested.fields.length, 0);
+
+    const totalLines = this.lines.length;
+    const processedLines = totalLines - this.parseErrors.length;
+    const parsingCoverage = totalLines > 0 ? processedLines / totalLines : 0;
+    const coveragePercentage = parsingCoverage * 100;
+
+    // Count compiler generated types
+    const compilerGeneratedCount = classes.filter(c => c.isCompilerGenerated).length +
+                                 delegates.filter(d => d.isCompilerGenerated).length +
+                                 generics.filter(g => g.isCompilerGenerated).length +
+                                 nestedTypes.filter(n => n.isCompilerGenerated).length;
+
+    return {
+      totalConstructs,
+      classCount: classes.length,
+      enumCount: enums.length,
+      interfaceCount: interfaces.length,
+      delegateCount: delegates.length,
+      genericCount: generics.length,
+      nestedTypeCount: nestedTypes.length,
+      propertyCount: properties.length,
+      eventCount: events.length,
+      constantCount: constants.length,
+      operatorCount: operators.length,
+      indexerCount: indexers.length,
+      destructorCount: destructors.length,
+      extensionMethodCount: extensionMethods.length,
+      compilerGeneratedCount,
+      coveragePercentage,
+      methodCount,
+      fieldCount,
+      parseErrors: this.parseErrors.length,
+      parsingCoverage
+    };
   }
 }

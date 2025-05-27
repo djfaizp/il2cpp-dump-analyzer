@@ -119,7 +119,8 @@ export class IL2CPPDumpParser {
             fields,
             methods,
             isMonoBehaviour,
-            typeDefIndex
+            typeDefIndex,
+            attributes: []
           });
 
           i = endLine;

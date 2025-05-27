@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "il2cpp-dump-analyzer": {
+      "command": "npx",
+      "args": [
+        "il2cpp-dump-analyzer-mcp"
+      ],
+      "env": {
+        "NODE_ENV": "production",
+        "SUPABASE_URL": "https://qbyzicviwuuzlyrhtjmt.supabase.co",
+        "SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFieXppY3Zpd3V1emx5cmh0am10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwMTAzNzEsImV4cCI6MjA2MzU4NjM3MX0.QLKlp2dqyR5UlmA7SdA49FqGcAkE_iqQFUoPM3BOtJY",
+        "DUMP_FILE_PATH": "C:\\Users\\modan\\Desktop\\Development\\agentic-rag\\dump.cs"
+      }
+    }
+  }
+}

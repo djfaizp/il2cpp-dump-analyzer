@@ -55,7 +55,7 @@ describe('MCP Tools Unit Tests', () => {
       // Assert
       expect(result).toBeDefined();
       expect(result.results).toHaveLength(3);
-      expect(result.results[0].name).toBe('PlayerController');
+      expect(result.results[0].name).toBe('MonoBehaviour');
       expect(result.metadata.query).toBe('PlayerController');
       expect(result.metadata.resultCount).toBe(3);
     });
@@ -152,7 +152,7 @@ describe('MCP Tools Unit Tests', () => {
 
     it('should filter MonoBehaviours with query', async () => {
       // Arrange
-      const filteredResults = mockSearchResults.monoBehaviours.filter(mb => 
+      const filteredResults = mockSearchResults.monoBehaviours.filter(mb =>
         mb.metadata.name.includes('Player')
       );
       mockVectorStore.searchWithFilter.mockResolvedValue(filteredResults);
@@ -186,17 +186,18 @@ describe('MCP Tools Unit Tests', () => {
       expect(result.monoBehaviours).toHaveLength(0);
       expect(result.metadata.resultCount).toBe(0);
     });
+
+    // NOTE: This test suite uses mock data.
+    // Real data tests using dump.cs are in find-monobehaviours-tool-real-data.test.ts
   });
 
   describe('find_class_hierarchy tool', () => {
     it('should find class hierarchy with methods', async () => {
       // Arrange
-      const playerControllerDoc = mockDocuments.find(doc => 
+      const playerControllerDoc = mockDocuments.find(doc =>
         doc.metadata.name === 'PlayerController'
       );
-      mockVectorStore.searchWithFilter
-        .mockResolvedValueOnce([playerControllerDoc]) // Class search
-        .mockResolvedValueOnce([]); // Method search
+      mockVectorStore.searchWithFilter.mockResolvedValue([playerControllerDoc]);
 
       // Act
       const result = await simulateToolCall('find_class_hierarchy', {
@@ -214,9 +215,10 @@ describe('MCP Tools Unit Tests', () => {
 
     it('should find class hierarchy without methods', async () => {
       // Arrange
-      const gameManagerDoc = mockDocuments.find(doc => 
+      const gameManagerDoc = mockDocuments.find(doc =>
         doc.metadata.name === 'GameManager'
       );
+      expect(gameManagerDoc).toBeDefined(); // Ensure the mock data exists
       mockVectorStore.searchWithFilter.mockResolvedValue([gameManagerDoc]);
 
       // Act
@@ -285,7 +287,7 @@ describe('MCP Tools Unit Tests', () => {
 async function simulateToolCall(toolName: string, params: any): Promise<any> {
   // This would normally call the actual MCP tool implementation
   // For testing, we simulate the tool logic with mocked dependencies
-  
+
   switch (toolName) {
     case 'search_code':
       return simulateSearchCode(params);
@@ -303,19 +305,19 @@ async function simulateToolCall(toolName: string, params: any): Promise<any> {
 // Simulate search_code tool logic
 async function simulateSearchCode(params: any) {
   const { query, filter_type, filter_namespace, filter_monobehaviour, top_k = 5 } = params;
-  
+
   const filter: any = {};
   if (filter_type) filter.type = filter_type;
   if (filter_namespace) filter.namespace = filter_namespace;
   if (filter_monobehaviour) filter.isMonoBehaviour = true;
-  
+
   let results;
   if (Object.keys(filter).length > 0) {
     results = await mockVectorStore.searchWithFilter(query, filter, top_k);
   } else {
     results = await mockVectorStore.similaritySearch(query, top_k);
   }
-  
+
   return {
     results: results.map((doc: any) => ({
       content: doc.pageContent,
@@ -339,14 +341,14 @@ async function simulateSearchCode(params: any) {
 // Simulate find_monobehaviours tool logic
 async function simulateMonoBehaviours(params: any) {
   const { query = '', top_k = 10 } = params;
-  
+
   const filter = {
     type: 'class',
     isMonoBehaviour: true
   };
-  
+
   const results = await mockVectorStore.searchWithFilter(query, filter, top_k);
-  
+
   return {
     monoBehaviours: results.map((doc: any) => ({
       content: doc.pageContent,
@@ -368,16 +370,16 @@ async function simulateMonoBehaviours(params: any) {
 // Simulate find_class_hierarchy tool logic
 async function simulateClassHierarchy(params: any) {
   const { class_name, include_methods = true } = params;
-  
+
   const classResults = await mockVectorStore.searchWithFilter(class_name, { type: 'class' }, 1);
-  
+
   if (classResults.length === 0) {
     return {
       error: `Class '${class_name}' not found in the IL2CPP dump.`,
       suggestions: 'Try searching with a partial name or check the spelling.'
     };
   }
-  
+
   const classDoc = classResults[0];
   const result: any = {
     name: classDoc.metadata.name,
@@ -392,34 +394,34 @@ async function simulateClassHierarchy(params: any) {
       timestamp: new Date().toISOString()
     }
   };
-  
+
   if (include_methods) {
     result.methods = classDoc.metadata.methods || [];
   }
-  
+
   return result;
 }
 
 // Simulate find_enum_values tool logic
 async function simulateEnumValues(params: any) {
   const { enum_name } = params;
-  
+
   const enumResults = await mockVectorStore.searchWithFilter(enum_name, { type: 'enum' }, 1);
-  
+
   if (enumResults.length === 0) {
     return {
       error: `Enum '${enum_name}' not found in the IL2CPP dump.`,
       suggestions: 'Try searching with a partial name or check the spelling.'
     };
   }
-  
+
   const enumDoc = enumResults[0];
-  
+
   // Parse enum values from content
   const content = enumDoc.pageContent;
   const lines = content.split('\n');
   const valueLines = lines.filter((line: string) => line.includes('=') && !line.trim().startsWith('//'));
-  
+
   const enumValues = valueLines.map((line: string) => {
     const trimmed = line.trim();
     const parts = trimmed.split('=');
@@ -430,7 +432,7 @@ async function simulateEnumValues(params: any) {
     }
     return null;
   }).filter(Boolean);
-  
+
   return {
     name: enumDoc.metadata.name,
     namespace: enumDoc.metadata.namespace,

@@ -74,6 +74,7 @@ export interface IL2CPPMethod {
   returnType: string;
   parameters: IL2CPPParameter[];
   isPublic: boolean;
+  isPrivate?: boolean;
   isStatic: boolean;
   isVirtual: boolean;
   isAbstract: boolean;
@@ -81,8 +82,9 @@ export interface IL2CPPMethod {
   attributes: string[];
   rva: string;
   offset: string;
-  slot?: string;
+  slot?: number;
   isGeneric?: boolean;
+  genericConstraints?: string;
   genericParameters?: IL2CPPGenericParameter[];
   genericInstantiations?: IL2CPPGenericInstantiation[];
 }
@@ -92,6 +94,7 @@ export interface IL2CPPField {
   name: string;
   type: string;
   isPublic: boolean;
+  isPrivate?: boolean;
   isStatic: boolean;
   isReadOnly: boolean;
   attributes: string[];
@@ -121,6 +124,7 @@ export interface EnhancedParseResult {
   indexers: IL2CPPIndexer[];
   destructors: IL2CPPDestructor[];
   extensionMethods: IL2CPPExtensionMethod[];
+  imageMappings: Map<number, string>;
   statistics: ParseStatistics;
 }
 
@@ -142,6 +146,10 @@ export interface ParseStatistics {
   extensionMethodCount: number;
   compilerGeneratedCount: number;
   coveragePercentage: number;
+  methodCount: number;
+  fieldCount: number;
+  parseErrors: number;
+  parsingCoverage: number;
 }
 
 // Re-export existing types for compatibility
@@ -154,6 +162,7 @@ export interface IL2CPPClass {
   fields: IL2CPPField[];
   methods: IL2CPPMethod[];
   isMonoBehaviour: boolean;
+  isStruct?: boolean;
   typeDefIndex: number;
   isNested?: boolean;
   parentType?: string;

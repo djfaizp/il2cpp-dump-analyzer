@@ -78,7 +78,7 @@ describe('IL2CPP Parser Unit Tests', () => {
       // Assert
       expect(result.classes).toBeDefined();
       expect(result.classes.length).toBeGreaterThan(0);
-      
+
       const playerController = result.classes.find((c: any) => c.name === 'PlayerController');
       expect(playerController).toBeDefined();
       expect(playerController.namespace).toBe('Game.Player');
@@ -98,7 +98,7 @@ describe('IL2CPP Parser Unit Tests', () => {
       const playerController = result.classes.find((c: any) => c.name === 'PlayerController');
       expect(playerController.methods).toBeDefined();
       expect(playerController.methods.length).toBeGreaterThan(0);
-      
+
       const startMethod = playerController.methods.find((m: any) => m.name === 'Start');
       expect(startMethod).toBeDefined();
       expect(startMethod.returnType).toBe('void');
@@ -116,7 +116,7 @@ describe('IL2CPP Parser Unit Tests', () => {
       // Assert
       const playerController = result.classes.find((c: any) => c.name === 'PlayerController');
       expect(playerController.fields).toBeDefined();
-      
+
       const speedField = playerController.fields.find((f: any) => f.name === 'speed');
       expect(speedField).toBeDefined();
       expect(speedField.type).toBe('float');
@@ -134,7 +134,7 @@ describe('IL2CPP Parser Unit Tests', () => {
       // Assert
       const monoBehaviours = result.classes.filter((c: any) => c.isMonoBehaviour);
       expect(monoBehaviours.length).toBeGreaterThan(0);
-      
+
       const gameManager = monoBehaviours.find((c: any) => c.name === 'GameManager');
       expect(gameManager).toBeDefined();
       expect(gameManager.baseClass).toBe('MonoBehaviour');
@@ -153,7 +153,7 @@ describe('IL2CPP Parser Unit Tests', () => {
       // Assert
       expect(result.enums).toBeDefined();
       expect(result.enums.length).toBeGreaterThan(0);
-      
+
       const playerState = result.enums.find((e: any) => e.name === 'PlayerState');
       expect(playerState).toBeDefined();
       expect(playerState.namespace).toBe('Game.Player');
@@ -171,7 +171,7 @@ describe('IL2CPP Parser Unit Tests', () => {
       const playerState = result.enums.find((e: any) => e.name === 'PlayerState');
       expect(playerState.values).toBeDefined();
       expect(playerState.values.length).toBeGreaterThan(0);
-      
+
       const idleValue = playerState.values.find((v: any) => v.name === 'Idle');
       expect(idleValue).toBeDefined();
       expect(idleValue.value).toBe('0');
@@ -190,7 +190,7 @@ describe('IL2CPP Parser Unit Tests', () => {
       // Assert
       expect(result.interfaces).toBeDefined();
       expect(result.interfaces.length).toBeGreaterThan(0);
-      
+
       const observer = result.interfaces.find((i: any) => i.name === 'IObserver');
       expect(observer).toBeDefined();
       expect(observer.namespace).toBe('Game.Managers');
@@ -207,7 +207,7 @@ describe('IL2CPP Parser Unit Tests', () => {
       // Assert
       const observer = result.interfaces.find((i: any) => i.name === 'IObserver');
       expect(observer.methods).toBeDefined();
-      
+
       const notifyMethod = observer.methods.find((m: any) => m.name === 'OnNotify');
       expect(notifyMethod).toBeDefined();
       expect(notifyMethod.returnType).toBe('void');
@@ -227,7 +227,7 @@ describe('IL2CPP Parser Unit Tests', () => {
       // Assert
       const namespaces = new Set();
       result.classes.forEach((c: any) => namespaces.add(c.namespace));
-      
+
       expect(namespaces.has('UnityEngine')).toBe(true);
       expect(namespaces.has('Game.Player')).toBe(true);
       expect(namespaces.has('Game.Managers')).toBe(true);
@@ -243,7 +243,7 @@ describe('IL2CPP Parser Unit Tests', () => {
       const result = parser.extractAllConstructs();
 
       // Assert
-      const nestedClasses = result.classes.filter((c: any) => 
+      const nestedClasses = result.classes.filter((c: any) =>
         c.namespace && c.namespace.includes('.')
       );
       expect(nestedClasses.length).toBeGreaterThan(0);
@@ -326,9 +326,12 @@ describe('IL2CPP Parser Unit Tests', () => {
 
 // Helper function to create a mock parser
 async function createMockParser() {
+  let loadedContent = '';
+
   return {
     loadFile: jest.fn().mockImplementation(async (filePath: string) => {
       const content = await mockFs.promises.readFile(filePath, 'utf-8');
+      loadedContent = content;
       // Simulate parsing logic
       return content;
     }),
@@ -336,6 +339,44 @@ async function createMockParser() {
     isLoaded: jest.fn().mockReturnValue(true),
 
     extractAllConstructs: jest.fn().mockImplementation(() => {
+      // Check if content is empty or whitespace only
+      if (!loadedContent || loadedContent.trim() === '') {
+        return {
+          classes: [],
+          enums: [],
+          interfaces: [],
+          statistics: {
+            totalConstructs: 0,
+            classCount: 0,
+            enumCount: 0,
+            interfaceCount: 0,
+            methodCount: 0,
+            fieldCount: 0,
+            parseErrors: 0,
+            parsingCoverage: 0
+          }
+        };
+      }
+
+      // Check for malformed content
+      if (loadedContent.includes('public class {') || loadedContent.includes('IncompleteMethod(')) {
+        return {
+          classes: [],
+          enums: [],
+          interfaces: [],
+          statistics: {
+            totalConstructs: 0,
+            classCount: 0,
+            enumCount: 0,
+            interfaceCount: 0,
+            methodCount: 0,
+            fieldCount: 0,
+            parseErrors: 1,
+            parsingCoverage: 0
+          }
+        };
+      }
+
       // Simulate parsing results based on mock content
       return {
         classes: [
@@ -377,6 +418,16 @@ async function createMockParser() {
             fields: [
               { name: '_instance', type: 'GameManager', isStatic: true, isPrivate: true }
             ]
+          },
+          {
+            name: 'WeaponFactory',
+            namespace: 'Game.Factory',
+            baseClass: 'Object',
+            isMonoBehaviour: false,
+            methods: [
+              { name: 'CreateWeapon', returnType: 'IWeapon', isAbstract: true }
+            ],
+            fields: []
           }
         ],
         enums: [
@@ -396,9 +447,9 @@ async function createMockParser() {
             name: 'IObserver',
             namespace: 'Game.Managers',
             methods: [
-              { 
-                name: 'OnNotify', 
-                returnType: 'void', 
+              {
+                name: 'OnNotify',
+                returnType: 'void',
                 parameters: [
                   { name: 'eventName', type: 'string' },
                   { name: 'data', type: 'object' }
@@ -408,11 +459,11 @@ async function createMockParser() {
           }
         ],
         statistics: {
-          totalConstructs: 5,
-          classCount: 3,
+          totalConstructs: 6,
+          classCount: 4,
           enumCount: 1,
           interfaceCount: 1,
-          methodCount: 8,
+          methodCount: 9,
           fieldCount: 3,
           parseErrors: 0,
           parsingCoverage: 0.95

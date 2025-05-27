@@ -1,0 +1,227 @@
+# IL2CPP Dump Analyzer MCP - Production Docker Compose
+# Full stack deployment with Supabase and IL2CPP analyzer
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # Supabase Database with pgvector extension
+  # =============================================================================
+  supabase-db:
+    image: supabase/postgres:15.1.0.147
+    container_name: il2cpp-supabase-db
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - il2cpp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # =============================================================================
+  # Supabase API Gateway
+  # =============================================================================
+  supabase-kong:
+    image: kong:2.8.1
+    container_name: il2cpp-supabase-kong
+    restart: unless-stopped
+    ports:
+      - "${KONG_HTTP_PORT:-8000}:8000/tcp"
+      - "${KONG_HTTPS_PORT:-8443}:8443/tcp"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+    volumes:
+      - ./docker/kong.yml:/var/lib/kong/kong.yml:ro
+    networks:
+      - il2cpp-network
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  # =============================================================================
+  # Supabase Auth (Disabled for development - using service_role directly)
+  # =============================================================================
+  # supabase-auth:
+  #   image: supabase/gotrue:v2.132.3
+  #   container_name: il2cpp-supabase-auth
+  #   restart: unless-stopped
+  #   environment:
+  #     GOTRUE_API_HOST: 0.0.0.0
+  #     GOTRUE_API_PORT: 9999
+  #     API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:8000}
+  #     GOTRUE_DB_DRIVER: postgres
+  #     GOTRUE_DB_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/${POSTGRES_DB:-il2cpp_analyzer}?search_path=auth
+  #     GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:3000}
+  #     GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS:-}
+  #     GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+  #     GOTRUE_JWT_ADMIN_ROLES: service_role
+  #     GOTRUE_JWT_AUD: authenticated
+  #     GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+  #     GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+  #     GOTRUE_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+  #     GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP:-true}
+  #     GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-true}
+  #     GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@example.com}
+  #     GOTRUE_SMTP_HOST: ${SMTP_HOST:-supabase-inbucket}
+  #     GOTRUE_SMTP_PORT: ${SMTP_PORT:-2500}
+  #     GOTRUE_SMTP_USER: ${SMTP_USER:-fake_mail_user}
+  #     GOTRUE_SMTP_PASS: ${SMTP_PASS:-fake_mail_password}
+  #     GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-fake_sender}
+  #     GOTRUE_MAILER_URLPATHS_INVITE: ${MAILER_URLPATHS_INVITE:-/auth/v1/verify}
+  #     GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION:-/auth/v1/verify}
+  #     GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
+  #     GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
+  #   networks:
+  #     - il2cpp-network
+  #   depends_on:
+  #     supabase-db:
+  #       condition: service_healthy
+
+  # =============================================================================
+  # Supabase REST API
+  # =============================================================================
+  supabase-rest:
+    image: postgrest/postgrest:v12.0.1
+    container_name: il2cpp-supabase-rest
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/${POSTGRES_DB:-il2cpp_analyzer}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
+      PGRST_DB_ANON_ROLE: ${PGRST_DB_ANON_ROLE:-service_role}
+      # Development settings - use dummy JWT secret and allow anonymous access
+      PGRST_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      # Allow anonymous access without JWT validation
+      PGRST_JWT_AUD: ""
+    networks:
+      - il2cpp-network
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  # =============================================================================
+  # IL2CPP Dump Analyzer MCP Server
+  # =============================================================================
+  il2cpp-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: il2cpp-mcp-server
+    restart: unless-stopped
+    environment:
+      # Supabase Configuration - Use direct PostgREST connection with service role for development
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_ANON_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+
+      # Database Configuration
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/${POSTGRES_DB:-il2cpp_analyzer}
+
+      # Application Configuration
+      NODE_ENV: ${NODE_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      # IL2CPP Configuration
+      DUMP_FILE_PATH: /app/data/dump.cs
+      IL2CPP_DUMP_PATH: /app/data
+      MODEL_CACHE_PATH: /app/models
+      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-Xenova/all-MiniLM-L6-v2}
+
+      # MCP Configuration
+      MCP_TRANSPORT: stdio
+      MCP_SERVER_NAME: ${MCP_SERVER_NAME:-il2cpp-dump-analyzer}
+
+      # Health & Monitoring Configuration
+      HEALTH_CHECK_ENABLED: true
+      HEALTH_CHECK_INTERVAL: 30000
+      METRICS_ENABLED: true
+      LIFECYCLE_RESTART_POLICY: on-failure
+      LIFECYCLE_MAX_RESTARTS: 5
+    volumes:
+      # IL2CPP dump files
+      - il2cpp-dumps:/app/data
+      # Xenova model cache
+      - xenova-models:/app/models
+      # Application cache
+      - il2cpp-cache:/app/cache
+      # Logs
+      - il2cpp-logs:/app/logs
+    networks:
+      - il2cpp-network
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      supabase-rest:
+        condition: service_started
+    # Add a startup delay to ensure PostgREST is fully ready and allow model download
+    command: sh -c "sleep 30 && node /app/bin/il2cpp-mcp-stdio.js"
+    healthcheck:
+      test: ["CMD", "node", "/app/docker/health-check.js"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 300s  # Allow 5 minutes for model download on first run
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 300s
+      resources:
+        limits:
+          memory: 4G  # Increased for Xenova model loading
+          cpus: '2.0'
+        reservations:
+          memory: 1G  # Increased minimum memory
+          cpus: '0.5'
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  il2cpp-network:
+    driver: bridge
+    name: il2cpp-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  # Database storage
+  supabase-db-data:
+    name: il2cpp-supabase-db-data
+
+  # IL2CPP application storage - use named volumes for better Docker compatibility
+  il2cpp-dumps:
+    name: il2cpp-dumps
+    driver: local
+
+  xenova-models:
+    name: il2cpp-xenova-models
+    driver: local
+
+  il2cpp-cache:
+    name: il2cpp-cache
+    driver: local
+
+  il2cpp-logs:
+    name: il2cpp-logs
+    driver: local

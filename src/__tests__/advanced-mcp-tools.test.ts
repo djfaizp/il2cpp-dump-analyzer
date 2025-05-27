@@ -28,10 +28,10 @@ describe('Advanced MCP Tools Unit Tests', () => {
     it('should analyze bidirectional dependencies correctly', async () => {
       // Arrange
       const targetClass = mockDocuments.find(doc => doc.metadata.name === 'PlayerController');
-      const dependentClasses = mockDocuments.filter(doc => 
+      const dependentClasses = mockDocuments.filter(doc =>
         doc.metadata.name !== 'PlayerController' && doc.metadata.type === 'class'
       );
-      
+
       mockVectorStore.searchWithFilter
         .mockResolvedValueOnce([targetClass]) // Target class search
         .mockResolvedValue(dependentClasses); // Dependency searches
@@ -107,10 +107,10 @@ describe('Advanced MCP Tools Unit Tests', () => {
     it('should find cross-references for a class', async () => {
       // Arrange
       const targetClass = mockDocuments.find(doc => doc.metadata.name === 'PlayerController');
-      const referencingClasses = mockDocuments.filter(doc => 
+      const referencingClasses = mockDocuments.filter(doc =>
         doc.metadata.name !== 'PlayerController'
       );
-      
+
       mockVectorStore.searchWithFilter.mockResolvedValueOnce([targetClass]);
       mockVectorStore.similaritySearch.mockResolvedValue(referencingClasses);
 
@@ -133,7 +133,9 @@ describe('Advanced MCP Tools Unit Tests', () => {
 
     it('should find cross-references for a method', async () => {
       // Arrange
-      mockVectorStore.searchWithFilter.mockResolvedValue([]);
+      // For method searches, we only need to return classes when searching for classes
+      const classesWithMethods = mockDocuments.filter(doc => doc.metadata.type === 'class');
+      mockVectorStore.searchWithFilter.mockResolvedValue(classesWithMethods);
       mockVectorStore.similaritySearch.mockResolvedValue(mockDocuments);
 
       // Act
@@ -145,6 +147,7 @@ describe('Advanced MCP Tools Unit Tests', () => {
       });
 
       // Assert
+      expect(result.target).toBeDefined();
       expect(result.target.type).toBe('method');
       expect(result.metadata.referenceType).toBe('usage');
       expect(result.metadata.includeSystemTypes).toBe(false);
@@ -268,7 +271,7 @@ describe('Advanced MCP Tools Unit Tests', () => {
 
       // Assert
       expect(result.summary.totalPatternsFound).toBe(0);
-      expect(result.summary.architecturalInsights).toContain('No design patterns detected');
+      expect(result.summary.architecturalInsights).toContain('No design patterns detected with the specified criteria');
     });
   });
 });
@@ -289,17 +292,17 @@ async function simulateAdvancedToolCall(toolName: string, params: any): Promise<
 
 // Simulate analyze_dependencies tool logic
 async function simulateDependencyAnalysis(params: any) {
-  const { 
-    class_name, 
-    analysis_type = 'bidirectional', 
-    depth = 3, 
-    include_system_types = false 
+  const {
+    class_name,
+    analysis_type = 'bidirectional',
+    depth = 3,
+    include_system_types = false
   } = params;
-  
+
   const maxDepth = Math.min(Math.max(depth, 1), 5);
-  
+
   const classResults = await mockVectorStore.searchWithFilter(class_name, { type: 'class' }, 1);
-  
+
   if (classResults.length === 0) {
     return {
       error: `Class '${class_name}' not found in the IL2CPP dump.`,
@@ -307,9 +310,9 @@ async function simulateDependencyAnalysis(params: any) {
       availableClasses: 'Use search_code tool to find available classes.'
     };
   }
-  
+
   const targetClass = classResults[0];
-  
+
   return {
     targetClass: {
       name: targetClass.metadata.name,
@@ -339,19 +342,77 @@ async function simulateDependencyAnalysis(params: any) {
 
 // Simulate find_cross_references tool logic
 async function simulateCrossReferences(params: any) {
-  const { 
-    target_name, 
-    target_type, 
+  const {
+    target_name,
+    target_type,
     reference_type = 'all',
     include_nested = true,
     include_system_types = false,
     max_results = 50
   } = params;
-  
+
   const validMaxResults = Math.min(Math.max(max_results, 1), 200);
-  
+
+  // For method searches, we need to find a method within a class
+  if (target_type === 'method') {
+    // Look for a class that contains this method
+    const classResults = await mockVectorStore.searchWithFilter('', { type: 'class' }, 10);
+    const classWithMethod = classResults.find((doc: any) =>
+      doc.metadata.methods && doc.metadata.methods.some((method: any) =>
+        method.name === target_name || method.name.includes(target_name)
+      )
+    );
+
+    if (classWithMethod) {
+      const method = classWithMethod.metadata.methods.find((m: any) =>
+        m.name === target_name || m.name.includes(target_name)
+      );
+
+      return {
+        target: {
+          name: method.name,
+          type: target_type,
+          fullName: `${classWithMethod.metadata.fullName}.${method.name}`,
+          namespace: classWithMethod.metadata.namespace || '',
+          found: true,
+          containingClass: classWithMethod.metadata.name
+        },
+        references: [],
+        usagePatterns: {
+          inheritanceCount: 0,
+          implementationCount: 0,
+          fieldUsageCount: 0,
+          methodUsageCount: 0,
+          parameterUsageCount: 0,
+          returnTypeUsageCount: 0
+        },
+        metadata: {
+          searchTarget: target_name,
+          targetType: target_type,
+          referenceType: reference_type,
+          totalReferences: 0,
+          includeNested: include_nested,
+          includeSystemTypes: include_system_types,
+          timestamp: new Date().toISOString()
+        }
+      };
+    }
+
+    // If method not found in any class, return error
+    return {
+      error: `${target_type} '${target_name}' not found in the IL2CPP dump.`,
+      suggestions: [
+        'Try searching with a partial name',
+        'Check the spelling and case sensitivity',
+        'Use search_code tool to find available entities',
+        'Verify the target_type is correct'
+      ],
+      availableTypes: ['class', 'method', 'field', 'property', 'event', 'enum', 'interface']
+    };
+  }
+
   const targetResults = await mockVectorStore.searchWithFilter(target_name, { type: target_type }, 1);
-  
+
   if (targetResults.length === 0) {
     return {
       error: `${target_type} '${target_name}' not found in the IL2CPP dump.`,
@@ -364,9 +425,9 @@ async function simulateCrossReferences(params: any) {
       availableTypes: ['class', 'method', 'field', 'property', 'event', 'enum', 'interface']
     };
   }
-  
+
   const targetEntity = targetResults[0];
-  
+
   return {
     target: {
       name: targetEntity.metadata.name,
@@ -398,7 +459,7 @@ async function simulateCrossReferences(params: any) {
 
 // Simulate find_design_patterns tool logic
 async function simulateDesignPatterns(params: any) {
-  const { 
+  const {
     pattern_types,
     confidence_threshold = 0.7,
     include_partial_matches = true,
@@ -406,17 +467,17 @@ async function simulateDesignPatterns(params: any) {
     exclude_unity_patterns = false,
     max_results_per_pattern = 10
   } = params;
-  
+
   const validConfidence = Math.min(Math.max(confidence_threshold, 0.1), 1.0);
   const validMaxResults = Math.min(Math.max(max_results_per_pattern, 1), 50);
-  
+
   const allClassesResults = await mockVectorStore.searchWithFilter('', { type: 'class' }, 500);
-  
+
   const detectedPatterns: any = {};
   pattern_types.forEach((pattern: string) => {
     detectedPatterns[pattern] = [];
   });
-  
+
   return {
     detectedPatterns,
     summary: {

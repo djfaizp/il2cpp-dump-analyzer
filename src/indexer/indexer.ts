@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { EnhancedIL2CPPDumpParser } from '../parser/enhanced-il2cpp-parser';
+import { EnhancedIL2CPPParser } from '../parser/enhanced-il2cpp-parser';
 import { IL2CPPCodeChunker, CodeChunk } from '../embeddings/chunker';
 import { IL2CPPVectorStore } from '../embeddings/vector-store';
 import { IL2CPPClass, IL2CPPEnum, IL2CPPInterface, EnhancedParseResult } from '../parser/enhanced-types';
@@ -11,7 +11,7 @@ import { IHashManager } from '../utils/supabase-hash-manager';
  * Manages the indexing process for IL2CPP dump files
  */
 export class IL2CPPIndexer {
-  private parser: EnhancedIL2CPPDumpParser;
+  private parser: EnhancedIL2CPPParser;
   private chunker: IL2CPPCodeChunker;
   private vectorStore: IL2CPPVectorStore;
   private hashManager: IHashManager;
@@ -22,7 +22,7 @@ export class IL2CPPIndexer {
     private readonly model?: string,
     hashFilePath?: string
   ) {
-    this.parser = new EnhancedIL2CPPDumpParser();
+    this.parser = new EnhancedIL2CPPParser();
     this.chunker = new IL2CPPCodeChunker(chunkSize, chunkOverlap);
     this.vectorStore = new IL2CPPVectorStore(model);
     this.hashManager = createHashManagerFromEnv(hashFilePath);
@@ -133,7 +133,8 @@ export class IL2CPPIndexer {
         fields: [],
         methods: [delegate.invokeMethod, delegate.constructorMethod].filter(Boolean),
         isMonoBehaviour: false,
-        typeDefIndex: delegate.typeDefIndex
+        typeDefIndex: delegate.typeDefIndex,
+        attributes: delegate.attributes || []
       };
       const delegateChunks = await this.chunker.chunkClass(delegateAsClass);
       chunks.push(...delegateChunks);
@@ -150,7 +151,8 @@ export class IL2CPPIndexer {
         fields: generic.fields,
         methods: generic.methods,
         isMonoBehaviour: false,
-        typeDefIndex: generic.typeDefIndex
+        typeDefIndex: generic.typeDefIndex,
+        attributes: generic.attributes || []
       };
       const genericChunks = await this.chunker.chunkClass(genericAsClass);
       chunks.push(...genericChunks);
@@ -167,7 +169,8 @@ export class IL2CPPIndexer {
         fields: nested.fields,
         methods: nested.methods,
         isMonoBehaviour: false,
-        typeDefIndex: nested.typeDefIndex
+        typeDefIndex: nested.typeDefIndex,
+        attributes: nested.attributes || []
       };
       const nestedChunks = await this.chunker.chunkClass(nestedAsClass);
       chunks.push(...nestedChunks);
@@ -200,7 +203,12 @@ export class IL2CPPIndexer {
     const chunks: CodeChunk[] = [];
 
     for (const classEntity of classes) {
-      const classChunks = await this.chunker.chunkClass(classEntity);
+      // Ensure attributes is always an array for compatibility
+      const compatibleClass: IL2CPPClass = {
+        ...classEntity,
+        attributes: classEntity.attributes || []
+      };
+      const classChunks = await this.chunker.chunkClass(compatibleClass);
       chunks.push(...classChunks);
     }
 

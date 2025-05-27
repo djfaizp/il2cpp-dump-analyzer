@@ -1,5 +1,5 @@
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-import { IL2CPPClass, IL2CPPEnum, IL2CPPInterface, IL2CPPMethod } from '../parser/parser';
+import { IL2CPPClass, IL2CPPEnum, IL2CPPInterface, IL2CPPMethod } from '../parser/enhanced-types';
 
 /**
  * Specialized chunker for IL2CPP code that preserves semantic meaning
@@ -217,6 +217,12 @@ export class IL2CPPCodeChunker {
       const staticModifier = field.isStatic ? 'static ' : '';
       const readonlyModifier = field.isReadOnly ? 'readonly ' : '';
 
+      // Add attributes if present
+      const attributes = field.attributes || [];
+      if (attributes.length > 0) {
+        definition += `  [${attributes.join(', ')}]\n`;
+      }
+
       definition += `  ${accessModifier} ${staticModifier}${readonlyModifier}${field.type} ${field.name};\n`;
     }
 
@@ -227,6 +233,12 @@ export class IL2CPPCodeChunker {
       const virtualModifier = method.isVirtual ? 'virtual ' : '';
       const overrideModifier = method.isOverride ? 'override ' : '';
       const abstractModifier = method.isAbstract ? 'abstract ' : '';
+
+      // Add attributes if present
+      const attributes = method.attributes || [];
+      if (attributes.length > 0) {
+        definition += `  [${attributes.join(', ')}]\n`;
+      }
 
       definition += `  ${accessModifier} ${staticModifier}${virtualModifier}${overrideModifier}${abstractModifier}${method.returnType} ${method.name}(`;
 

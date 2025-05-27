@@ -1,0 +1,212 @@
+# IL2CPP Dump Analyzer MCP - Development Docker Compose
+# Development environment with hot reloading and debugging
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # Supabase Database (Development)
+  # =============================================================================
+  supabase-db:
+    image: supabase/postgres:15.1.0.147
+    container_name: il2cpp-supabase-db-dev
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"  # Different port for dev
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-il2cpp_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_123}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - supabase-db-dev-data:/var/lib/postgresql/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d
+      - ./docker/dev-seed:/docker-entrypoint-initdb.d/seed
+    networks:
+      - il2cpp-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-il2cpp_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # =============================================================================
+  # Supabase Studio (Development UI)
+  # =============================================================================
+  supabase-studio:
+    image: supabase/studio:20240326-5e5586d
+    container_name: il2cpp-supabase-studio-dev
+    restart: unless-stopped
+    ports:
+      - "${STUDIO_PORT:-3001}:3000"
+    environment:
+      STUDIO_PG_META_URL: http://supabase-meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_123}
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION:-IL2CPP Development}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT:-IL2CPP Dump Analyzer}
+      SUPABASE_URL: http://localhost:${KONG_HTTP_PORT:-8001}
+      SUPABASE_REST_URL: ${PUBLIC_REST_URL:-http://localhost:8001/rest/v1/}
+      SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+    networks:
+      - il2cpp-dev-network
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  # =============================================================================
+  # Supabase Meta API (for Studio)
+  # =============================================================================
+  supabase-meta:
+    image: supabase/postgres-meta:v0.80.0
+    container_name: il2cpp-supabase-meta-dev
+    restart: unless-stopped
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: supabase-db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: ${POSTGRES_DB:-il2cpp_dev}
+      PG_META_DB_USER: ${POSTGRES_USER:-postgres}
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_123}
+    networks:
+      - il2cpp-dev-network
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  # =============================================================================
+  # Supabase REST API (Development)
+  # =============================================================================
+  supabase-rest:
+    image: postgrest/postgrest:v12.0.1
+    container_name: il2cpp-supabase-rest-dev
+    restart: unless-stopped
+    ports:
+      - "${REST_PORT:-8001}:3000"
+    environment:
+      PGRST_DB_URI: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-dev_password_123}@supabase-db:5432/${POSTGRES_DB:-il2cpp_dev}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
+      PGRST_DB_ANON_ROLE: ${PGRST_DB_ANON_ROLE:-anon}
+      PGRST_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+      PGRST_OPENAPI_MODE: follow-privileges
+      PGRST_OPENAPI_SECURITY_ACTIVE: true
+    networks:
+      - il2cpp-dev-network
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  # =============================================================================
+  # IL2CPP Dump Analyzer MCP Server (Development)
+  # =============================================================================
+  il2cpp-mcp-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: il2cpp-mcp-server-dev
+    restart: unless-stopped
+    ports:
+      - "${MCP_DEV_PORT:-3000}:3000"  # For development server
+      - "${MCP_DEBUG_PORT:-9229}:9229"  # For Node.js debugging
+    environment:
+      # Development Configuration
+      NODE_ENV: development
+      LOG_LEVEL: debug
+
+      # Supabase Configuration (Development)
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+
+      # Database Configuration (Development)
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-dev_password_123}@supabase-db:5432/${POSTGRES_DB:-il2cpp_dev}
+
+      # IL2CPP Configuration (Development)
+      IL2CPP_DUMP_PATH: /app/data
+      MODEL_CACHE_PATH: /app/models
+      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-Xenova/all-MiniLM-L6-v2}
+
+      # MCP Configuration (Development)
+      MCP_TRANSPORT: stdio
+      MCP_SERVER_NAME: ${MCP_SERVER_NAME:-il2cpp-dump-analyzer-dev}
+
+      # Development Features
+      ENABLE_HOT_RELOAD: true
+      ENABLE_DEBUG_LOGS: true
+      ENABLE_PERFORMANCE_METRICS: true
+    volumes:
+      # Source code for hot reloading
+      - .:/app
+      - /app/node_modules  # Prevent overwriting node_modules
+
+      # IL2CPP dump files (development samples)
+      - ./data/samples:/app/data
+
+      # Xenova model cache (shared with host for faster development)
+      - ./cache/models:/app/models
+
+      # Application cache
+      - ./cache/app:/app/cache
+
+      # Development logs
+      - ./logs:/app/logs
+    networks:
+      - il2cpp-dev-network
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      supabase-rest:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('Development container healthy')"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 180s  # Allow more time for development model loading
+    command: ["npm", "run", "dev"]
+
+  # =============================================================================
+  # Development Tools Container
+  # =============================================================================
+  il2cpp-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: il2cpp-tools-dev
+    restart: "no"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-dev_password_123}@supabase-db:5432/${POSTGRES_DB:-il2cpp_dev}
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - il2cpp-dev-network
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+    profiles:
+      - tools
+    command: ["tail", "-f", "/dev/null"]  # Keep container running for manual commands
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  il2cpp-dev-network:
+    driver: bridge
+    name: il2cpp-dev-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  # Database storage (development)
+  supabase-db-dev-data:
+    name: il2cpp-supabase-db-dev-data

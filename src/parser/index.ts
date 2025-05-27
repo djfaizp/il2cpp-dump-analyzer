@@ -1,27 +1,21 @@
 // Enhanced IL2CPP Parser - Main Export File
 
 // Core enhanced parser
-export { EnhancedIL2CPPDumpParser } from './enhanced-il2cpp-parser';
-
-// Specialized parsers
-export { DelegateParser } from './delegate-parser';
-export { NestedTypeParser } from './nested-type-parser';
-export { GenericParser } from './generic-parser';
-
-// Enhanced type definitions
-export * from './enhanced-types';
+export { EnhancedIL2CPPParser } from './enhanced-il2cpp-parser';
 
 // Original parser for backward compatibility
 export { IL2CPPDumpParser } from './il2cpp-parser';
 
-// Original types for backward compatibility
+// Core types
 export type {
   IL2CPPClass,
   IL2CPPField,
   IL2CPPMethod,
   IL2CPPParameter,
   IL2CPPEnum,
-  IL2CPPInterface
+  IL2CPPInterface,
+  EnhancedParseResult,
+  ParseStatistics
 } from './parser';
 
 export {
@@ -35,49 +29,46 @@ export {
  * This library provides comprehensive parsing capabilities for IL2CPP dump.cs files
  * with support for:
  *
- * - Delegates (MulticastDelegate and Delegate inheritance)
- * - Nested Types (including compiler-generated types)
- * - Generic Types (with instantiation tracking)
- * - Enhanced metadata extraction
- * - Improved parsing coverage (~90% vs ~60% baseline)
+ * - Real IL2CPP dump format parsing (TypeDefIndex, RVA/Offset)
+ * - Attribute parsing and metadata extraction
+ * - Generic types and nested classes
+ * - MonoBehaviour detection
+ * - Comprehensive error handling and statistics
  *
  * Usage Example:
  * ```typescript
- * import { EnhancedIL2CPPDumpParser } from './parser';
+ * import { EnhancedIL2CPPParser } from './parser';
  *
- * const parser = new EnhancedIL2CPPDumpParser();
+ * const parser = new EnhancedIL2CPPParser();
  * await parser.loadFile('dump.cs');
  * const result = parser.extractAllConstructs();
  *
  * console.log(`Found ${result.statistics.totalConstructs} constructs`);
- * console.log(`Delegates: ${result.delegates.length}`);
- * console.log(`Generics: ${result.generics.length}`);
- * console.log(`Nested Types: ${result.nestedTypes.length}`);
+ * console.log(`Classes: ${result.classes.length}`);
+ * console.log(`Enums: ${result.enums.length}`);
+ * console.log(`Interfaces: ${result.interfaces.length}`);
  * ```
  *
  * Key Features:
  *
- * 1. **Delegate Parsing**: Automatically detects and parses delegate types,
- *    extracting signature information from Invoke methods.
+ * 1. **Real Format Support**: Handles actual IL2CPP dump.cs format with
+ *    TypeDefIndex, RVA, Offset, and image mappings.
  *
- * 2. **Nested Type Support**: Handles nested classes, structs, enums, and
- *    interfaces, including compiler-generated types like lambda containers.
+ * 2. **Attribute Parsing**: Extracts attributes like [Serializable],
+ *    [CreateAssetMenu], [SerializeField], etc.
  *
- * 3. **Generic Type Analysis**: Parses generic type definitions and tracks
- *    their instantiations with specific type arguments.
+ * 3. **Generic Support**: Parses generic methods and classes with
+ *    constraint information.
  *
- * 4. **Enhanced Metadata**: Extracts additional information like access
- *    modifiers, attributes, and compiler-generated markers.
+ * 4. **MonoBehaviour Detection**: Automatically identifies MonoBehaviour
+ *    classes for Unity-specific analysis.
  *
- * 5. **Search and Filtering**: Provides search capabilities across all
- *    construct types with optional type filtering.
- *
- * 6. **Statistics and Coverage**: Tracks parsing statistics and estimates
- *    coverage improvements over baseline parsing.
+ * 5. **Comprehensive Statistics**: Provides detailed parsing statistics
+ *    and error reporting.
  */
 
 // Import for internal use
-import { EnhancedIL2CPPDumpParser } from './enhanced-il2cpp-parser';
+import { EnhancedIL2CPPParser } from './enhanced-il2cpp-parser';
 
 // Utility functions for common operations
 export class IL2CPPParserUtils {
@@ -85,50 +76,56 @@ export class IL2CPPParserUtils {
    * Quick parse function for simple use cases
    */
   static async quickParse(filePath: string) {
-    const parser = new EnhancedIL2CPPDumpParser();
+    const parser = new EnhancedIL2CPPParser();
     await parser.loadFile(filePath);
     return parser.extractAllConstructs();
   }
 
   /**
-   * Get only delegates from a dump file
+   * Get only classes from a dump file
    */
-  static async extractDelegates(filePath: string) {
+  static async extractClasses(filePath: string) {
     const result = await this.quickParse(filePath);
-    return result.delegates;
+    return result.classes;
   }
 
   /**
-   * Get only generic types from a dump file
+   * Get only enums from a dump file
    */
-  static async extractGenerics(filePath: string) {
+  static async extractEnums(filePath: string) {
     const result = await this.quickParse(filePath);
-    return result.generics;
+    return result.enums;
   }
 
   /**
-   * Get only nested types from a dump file
+   * Get only interfaces from a dump file
    */
-  static async extractNestedTypes(filePath: string) {
+  static async extractInterfaces(filePath: string) {
     const result = await this.quickParse(filePath);
-    return result.nestedTypes;
+    return result.interfaces;
   }
 
   /**
-   * Get parsing statistics without full parsing
+   * Get only MonoBehaviour classes from a dump file
+   */
+  static async extractMonoBehaviours(filePath: string) {
+    const result = await this.quickParse(filePath);
+    return result.classes.filter(cls => cls.isMonoBehaviour);
+  }
+
+  /**
+   * Get parsing statistics
    */
   static async getStatistics(filePath: string) {
-    const parser = new EnhancedIL2CPPDumpParser();
-    await parser.loadFile(filePath);
-    return parser.getStatistics();
+    const result = await this.quickParse(filePath);
+    return result.statistics;
   }
 
   /**
-   * Search across all construct types
+   * Get image mappings from dump file
    */
-  static async search(filePath: string, query: string, types?: string[]) {
-    const parser = new EnhancedIL2CPPDumpParser();
-    await parser.loadFile(filePath);
-    return parser.searchConstructs(query, types);
+  static async getImageMappings(filePath: string) {
+    const result = await this.quickParse(filePath);
+    return result.imageMappings;
   }
 }

@@ -1,6 +1,6 @@
 # IL2CPP Dump Analyzer MCP Tools Documentation
 
-A comprehensive Model Context Protocol (MCP) server for analyzing IL2CPP dump.cs files from Unity games. This system provides a specialized RAG (Retrieval-Augmented Generation) system with 6 advanced MCP tools that enable AI assistants to understand and analyze Unity game code structures.
+A comprehensive Model Context Protocol (MCP) server for analyzing IL2CPP dump.cs files from Unity games. This system provides a specialized RAG (Retrieval-Augmented Generation) system with 10 advanced MCP tools that enable AI assistants to understand, analyze, and generate code from Unity game structures.
 
 ## Overview
 
@@ -13,7 +13,7 @@ The IL2CPP Dump Analyzer MCP system provides deep analysis capabilities for Unit
 - **Supabase Integration**: Scalable vector database with pgvector extension
 - **MCP Compliance**: Full Model Context Protocol specification compliance
 - **Stdio Transport**: Optimized for desktop applications and command-line tools
-- **Comprehensive Toolset**: 6 specialized analysis tools for different use cases
+- **Comprehensive Toolset**: 10 specialized analysis and code generation tools for different use cases
 
 ### Supported Analysis Types
 
@@ -23,6 +23,7 @@ The IL2CPP Dump Analyzer MCP system provides deep analysis capabilities for Unit
 - **Design Pattern Detection**: Identify common design patterns with confidence scoring
 - **Dependency Mapping**: Analyze coupling, circular dependencies, and architectural insights
 - **Enum Value Extraction**: Access enum definitions and their values
+- **Code Generation**: Generate C# wrapper classes, method stubs, and Unity MonoBehaviour templates
 
 ## Installation & Setup
 
@@ -36,7 +37,7 @@ The IL2CPP Dump Analyzer MCP system provides deep analysis capabilities for Unit
 
 1. **Clone and install:**
    ```bash
-   git clone https://github.com/yourusername/il2cpp-dump-analyzer-mcp.git
+   git clone https://github.com/djfaizp/il2cpp-dump-analyzer-mcp.git
    cd il2cpp-dump-analyzer-mcp
    npm install
    npm run build
@@ -99,15 +100,11 @@ LOG_LEVEL=info
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_KEY=your_supabase_anon_key
 SUPABASE_TABLE_NAME=il2cpp_documents
-
-# MCP Server Configuration
-MCP_SERVER_PORT=3000
-MCP_SERVER_HOST=0.0.0.0
 ```
 
 ## MCP Tools Reference
 
-The IL2CPP Dump Analyzer provides 6 comprehensive MCP tools for different analysis scenarios:
+The IL2CPP Dump Analyzer provides 10 comprehensive MCP tools for different analysis and code generation scenarios:
 
 ### 1. search_code - General Code Search
 
@@ -261,6 +258,86 @@ find_design_patterns({
   pattern_types: ["singleton", "observer", "factory"],
   confidence_threshold: 0.8,
   include_partial_matches: false
+})
+```
+
+### 8. generate_class_wrapper - C# Class Wrapper Generation
+
+**Purpose**: Generate C# wrapper classes from IL2CPP class definitions with full type fidelity and Unity integration.
+
+**Parameters**:
+- `class_name` (string, required): Name of the IL2CPP class to generate wrapper for
+- `include_documentation` (boolean, optional, default: true): Include XML documentation comments
+- `include_unity_attributes` (boolean, optional, default: true): Include Unity-specific attributes
+- `include_serialization` (boolean, optional, default: true): Include serialization attributes
+- `custom_namespace` (string, optional): Custom namespace for generated code
+- `unity_version` (string, optional): Target Unity version (e.g., '2021.3.0')
+- `additional_usings` (array, optional): Additional using statements to include
+
+**Response**: Returns generated C# wrapper class code with metadata including code statistics, generation options, and any errors or warnings.
+
+**Example**:
+```typescript
+generate_class_wrapper({
+  class_name: "Player",
+  include_documentation: true,
+  include_unity_attributes: true,
+  unity_version: "2022.3.0",
+  custom_namespace: "Game.Characters",
+  additional_usings: ["System.Collections.Generic", "UnityEngine.AI"]
+})
+```
+
+### 9. generate_method_stubs - Method Stub Generation
+
+**Purpose**: Generate method stubs with correct signatures and basic implementation from IL2CPP methods.
+
+**Parameters**:
+- `class_name` (string, required): Name of the IL2CPP class to generate method stubs for
+- `method_filter` (string, optional): Optional regex pattern to match specific methods
+- `include_documentation` (boolean, optional, default: true): Include XML documentation comments
+- `include_error_handling` (boolean, optional, default: true): Include error handling and validation
+- `generate_async` (boolean, optional, default: false): Generate async/await patterns where applicable
+- `custom_namespace` (string, optional): Custom namespace for generated code
+- `unity_version` (string, optional): Target Unity version
+- `additional_usings` (array, optional): Additional using statements to include
+
+**Response**: Returns generated method stub code with metadata including method count, filter applied, and code statistics.
+
+**Example**:
+```typescript
+generate_method_stubs({
+  class_name: "PlayerController",
+  method_filter: "Move.*|Jump.*",
+  include_error_handling: true,
+  generate_async: false,
+  custom_namespace: "Game.Controllers"
+})
+```
+
+### 10. generate_monobehaviour_template - Unity MonoBehaviour Template Generation
+
+**Purpose**: Generate Unity-ready MonoBehaviour scripts with proper lifecycle methods, serialization, and Unity-specific features.
+
+**Parameters**:
+- `class_name` (string, required): Name of the IL2CPP MonoBehaviour class to generate template for
+- `include_documentation` (boolean, optional, default: true): Include XML documentation comments
+- `include_unity_attributes` (boolean, optional, default: true): Include Unity-specific attributes (SerializeField, etc.)
+- `include_serialization` (boolean, optional, default: true): Include serialization attributes
+- `custom_namespace` (string, optional): Custom namespace for generated code
+- `unity_version` (string, optional): Target Unity version (e.g., '2021.3.0')
+- `additional_usings` (array, optional): Additional using statements to include
+
+**Response**: Returns generated MonoBehaviour template with Unity lifecycle methods, proper serialization, and metadata including Unity-specific information.
+
+**Example**:
+```typescript
+generate_monobehaviour_template({
+  class_name: "EnemyController",
+  include_unity_attributes: true,
+  unity_version: "2022.3.0",
+  custom_namespace: "Game.Enemies",
+  additional_usings: ["UnityEngine.AI", "System.Collections"]
 })
 ```
 

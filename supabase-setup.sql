@@ -1,13 +1,16 @@
 -- Enable the pgvector extension for vector operations
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create the main table for storing IL2CPP code chunks and their embeddings
+-- Updated to match existing Docker schema with UUID primary key and file_name column
 CREATE TABLE IF NOT EXISTS il2cpp_documents (
-  id BIGSERIAL PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  file_name TEXT,
   content TEXT NOT NULL,
   metadata JSONB DEFAULT '{}',
-  embedding VECTOR(384) NOT NULL,
-  document_hash TEXT UNIQUE NOT NULL,
+  embedding VECTOR(384),
+  document_hash TEXT UNIQUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -20,32 +23,32 @@ CREATE INDEX IF NOT EXISTS il2cpp_documents_document_hash_idx ON il2cpp_document
 
 CREATE INDEX IF NOT EXISTS il2cpp_documents_metadata_idx ON il2cpp_documents USING GIN(metadata);
 
--- Update the match_documents function to fix the ambiguous column reference
+-- Update the match_documents function to match existing Docker schema
+-- Updated to return UUID id and include file_name column
 CREATE OR REPLACE FUNCTION match_documents(
   query_embedding VECTOR(384),
-  match_threshold FLOAT,
-  match_count INT
+  match_threshold FLOAT DEFAULT 0.7,
+  match_count INT DEFAULT 10
 )
 RETURNS TABLE(
-  id BIGINT,
+  id UUID,
+  file_name TEXT,
   content TEXT,
   metadata JSONB,
   similarity FLOAT
 )
-LANGUAGE plpgsql
+LANGUAGE sql STABLE
 AS $$
-BEGIN
-  RETURN QUERY
   SELECT
     il2cpp_documents.id,
+    il2cpp_documents.file_name,
     il2cpp_documents.content,
     il2cpp_documents.metadata,
     1 - (il2cpp_documents.embedding <=> query_embedding) AS similarity
   FROM il2cpp_documents
   WHERE 1 - (il2cpp_documents.embedding <=> query_embedding) > match_threshold
-  ORDER BY similarity DESC
+  ORDER BY il2cpp_documents.embedding <=> query_embedding
   LIMIT match_count;
-END;
 $$;
 
 -- Create the file_hashes table for tracking processed dump.cs files
@@ -109,6 +112,7 @@ WITH (m = 16, ef_construction = 64);
 -- =============================================================================
 
 -- Enhanced match function with metadata filtering
+-- Updated to return UUID id and include file_name column
 CREATE OR REPLACE FUNCTION match_documents_filtered(
   query_embedding VECTOR(384),
   match_threshold FLOAT DEFAULT 0.0,
@@ -116,7 +120,8 @@ CREATE OR REPLACE FUNCTION match_documents_filtered(
   filter_metadata JSONB DEFAULT '{}'::jsonb
 )
 RETURNS TABLE(
-  id BIGINT,
+  id UUID,
+  file_name TEXT,
   content TEXT,
   metadata JSONB,
   similarity FLOAT
@@ -127,6 +132,7 @@ BEGIN
   RETURN QUERY
   SELECT
     il2cpp_documents.id,
+    il2cpp_documents.file_name,
     il2cpp_documents.content,
     il2cpp_documents.metadata,
     1 - (il2cpp_documents.embedding <=> query_embedding) AS similarity
@@ -143,6 +149,7 @@ END;
 $$;
 
 -- Hybrid search function combining vector and text search
+-- Updated to return UUID id and include file_name column
 CREATE OR REPLACE FUNCTION hybrid_search(
   query_text TEXT,
   query_embedding VECTOR(384),
@@ -152,7 +159,8 @@ CREATE OR REPLACE FUNCTION hybrid_search(
   vector_weight FLOAT DEFAULT 0.7
 )
 RETURNS TABLE(
-  id BIGINT,
+  id UUID,
+  file_name TEXT,
   content TEXT,
   metadata JSONB,
   combined_score FLOAT,
@@ -165,6 +173,7 @@ BEGIN
   RETURN QUERY
   SELECT
     il2cpp_documents.id,
+    il2cpp_documents.file_name,
     il2cpp_documents.content,
     il2cpp_documents.metadata,
     (text_weight * ts_rank_cd(to_tsvector('english', il2cpp_documents.content), plainto_tsquery('english', query_text)) +
@@ -288,9 +297,11 @@ $$;
 -- =============================================================================
 
 -- Function to export documents metadata for backup
+-- Updated to return UUID id and include file_name column
 CREATE OR REPLACE FUNCTION export_documents_metadata()
 RETURNS TABLE(
-  id BIGINT,
+  id UUID,
+  file_name TEXT,
   document_hash TEXT,
   metadata JSONB,
   created_at TIMESTAMP WITH TIME ZONE
@@ -301,6 +312,7 @@ BEGIN
   RETURN QUERY
   SELECT
     il2cpp_documents.id,
+    il2cpp_documents.file_name,
     il2cpp_documents.document_hash,
     il2cpp_documents.metadata,
     il2cpp_documents.created_at

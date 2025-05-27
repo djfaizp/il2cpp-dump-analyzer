@@ -19,6 +19,11 @@ A specialized Retrieval-Augmented Generation (RAG) system for analyzing IL2CPP d
 - **Dependency Mapping**: Analyze incoming/outgoing dependencies and circular references
 - **Enum Value Extraction**: Retrieve enum definitions and their values
 
+### Code Generation Tools
+- **Class Wrapper Generation**: Generate C# wrapper classes from IL2CPP class definitions
+- **Method Stub Generation**: Create method stubs with proper signatures and basic implementation
+- **MonoBehaviour Template Generation**: Generate Unity-ready MonoBehaviour scripts with lifecycle methods
+
 ### MCP Integration
 - **Official MCP SDK**: Full compliance with Model Context Protocol specification
 - **Stdio Transport**: Optimized for command-line tools and desktop applications
@@ -131,7 +136,7 @@ npm run mcp:stdio
 
 ## MCP Tools and Resources
 
-The server provides 6 comprehensive MCP tools for IL2CPP analysis:
+The server provides 10 comprehensive MCP tools for IL2CPP analysis and code generation:
 
 ### 1. `search_code` - General Code Search
 Search for code entities with advanced filtering capabilities.
@@ -249,6 +254,77 @@ find_design_patterns({
 })
 ```
 
+### 8. `generate_class_wrapper` - C# Class Wrapper Generation
+Generate C# wrapper classes from IL2CPP class definitions with full type fidelity.
+
+**Parameters:**
+- `class_name` (string, required): Name of the IL2CPP class to generate wrapper for
+- `include_documentation` (boolean, optional, default: true): Include XML documentation comments
+- `include_unity_attributes` (boolean, optional, default: true): Include Unity-specific attributes
+- `include_serialization` (boolean, optional, default: true): Include serialization attributes
+- `custom_namespace` (string, optional): Custom namespace for generated code
+- `unity_version` (string, optional): Target Unity version (e.g., '2021.3.0')
+- `additional_usings` (array, optional): Additional using statements to include
+
+**Example:**
+```typescript
+// Generate wrapper for Player class
+generate_class_wrapper({
+  class_name: "Player",
+  include_documentation: true,
+  include_unity_attributes: true,
+  unity_version: "2022.3.0",
+  additional_usings: ["System.Collections.Generic"]
+})
+```
+
+### 9. `generate_method_stubs` - Method Stub Generation
+Generate method stubs with correct signatures and basic implementation from IL2CPP methods.
+
+**Parameters:**
+- `class_name` (string, required): Name of the IL2CPP class to generate method stubs for
+- `method_filter` (string, optional): Optional regex pattern to match specific methods
+- `include_documentation` (boolean, optional, default: true): Include XML documentation comments
+- `include_error_handling` (boolean, optional, default: true): Include error handling and validation
+- `generate_async` (boolean, optional, default: false): Generate async/await patterns where applicable
+- `custom_namespace` (string, optional): Custom namespace for generated code
+- `unity_version` (string, optional): Target Unity version
+- `additional_usings` (array, optional): Additional using statements to include
+
+**Example:**
+```typescript
+// Generate method stubs for Player class
+generate_method_stubs({
+  class_name: "Player",
+  method_filter: "Move.*",
+  include_error_handling: true,
+  generate_async: false
+})
+```
+
+### 10. `generate_monobehaviour_template` - Unity MonoBehaviour Template Generation
+Generate Unity-ready MonoBehaviour scripts with proper lifecycle methods and serialization.
+
+**Parameters:**
+- `class_name` (string, required): Name of the IL2CPP MonoBehaviour class to generate template for
+- `include_documentation` (boolean, optional, default: true): Include XML documentation comments
+- `include_unity_attributes` (boolean, optional, default: true): Include Unity-specific attributes (SerializeField, etc.)
+- `include_serialization` (boolean, optional, default: true): Include serialization attributes
+- `custom_namespace` (string, optional): Custom namespace for generated code
+- `unity_version` (string, optional): Target Unity version (e.g., '2021.3.0')
+- `additional_usings` (array, optional): Additional using statements to include
+
+**Example:**
+```typescript
+// Generate MonoBehaviour template for EnemyController
+generate_monobehaviour_template({
+  class_name: "EnemyController",
+  include_unity_attributes: true,
+  unity_version: "2022.3.0",
+  custom_namespace: "Game.Enemies"
+})
+```
+
 ### Resources
 
 The server also exposes resources through the MCP resource system:
@@ -339,6 +415,14 @@ src/
 │   ├── xenova-embeddings.ts # Xenova Transformers.js integration
 │   ├── supabase-vector-store.ts # Supabase vector store implementation
 │   └── vector-store.ts    # Main vector store interface
+├── generator/             # Code generation infrastructure
+│   ├── types.ts           # TypeScript interfaces for code generation
+│   ├── base-generator.ts  # Abstract base class for generators
+│   ├── template-engine.ts # Template engine integration
+│   ├── class-wrapper-generator.ts # C# class wrapper generator
+│   ├── method-stub-generator.ts # Method stub generator
+│   ├── monobehaviour-generator.ts # Unity MonoBehaviour template generator
+│   └── index.ts           # Generator exports
 ├── indexer/               # File indexing and processing
 │   └── indexer.ts         # Main indexing logic with hash management
 ├── mcp/                   # MCP server implementation
@@ -356,6 +440,12 @@ src/
 bin/
 └── il2cpp-mcp-stdio.js    # Executable MCP server binary
 
+examples/                   # Code generation examples and documentation
+├── README.md              # Examples overview
+├── class-wrapper-example.md # Class wrapper generation examples
+├── method-stubs-example.md # Method stub generation examples
+└── monobehaviour-template-example.md # MonoBehaviour template examples
+
 supabase-setup.sql          # Supabase database schema
 ```
 
@@ -367,8 +457,9 @@ supabase-setup.sql          # Supabase database schema
 2. **Semantic Chunker**: Preserves code context while creating manageable chunks
 3. **Xenova Embeddings**: Generates 384-dimensional embeddings using Transformers.js
 4. **Supabase Vector Store**: High-performance vector search with pgvector
-5. **MCP Server**: Official SDK implementation with 6 specialized tools
+5. **MCP Server**: Official SDK implementation with 10 specialized tools
 6. **Hash Manager**: Efficient change detection to avoid reprocessing
+7. **Code Generators**: Generate C# code from IL2CPP definitions with full type fidelity
 
 ### Data Flow
 
@@ -377,7 +468,8 @@ supabase-setup.sql          # Supabase database schema
 3. **Chunking**: Create semantic chunks preserving context
 4. **Embedding**: Generate vectors using all-MiniLM-L6-v2
 5. **Storage**: Store in Supabase with hash-based deduplication
-6. **Query**: MCP tools provide advanced analysis capabilities
+6. **Analysis**: MCP tools provide advanced analysis capabilities
+7. **Generation**: Code generators create C# implementations from IL2CPP definitions
 
 ## MCP SDK Integration
 
@@ -428,6 +520,63 @@ The server uses **stdio transport only** for optimal compatibility with:
 4. **Memory Issues with Large Files**
    - Increase Node.js memory limit: `node --max-old-space-size=4096`
    - Consider chunking very large dump files
+
+5. **Code Generation Issues**
+   - **Class Not Found**: Ensure the class exists in the IL2CPP dump and is properly indexed
+   - **Invalid Generated Code**: Check Unity version compatibility and namespace conflicts
+   - **Missing Dependencies**: Verify all required using statements are included
+   - **Type Resolution Errors**: Ensure IL2CPP dump contains complete type information
+
+6. **MonoBehaviour Generation Issues**
+   - **Not a MonoBehaviour**: Verify the target class inherits from MonoBehaviour
+   - **Missing Unity Methods**: Check Unity version compatibility for lifecycle methods
+   - **Serialization Issues**: Ensure fields are properly marked as serializable
+
+## 🐳 Docker Support
+
+The IL2CPP Dump Analyzer MCP system includes comprehensive Docker support for easy deployment and development.
+
+### Quick Start with Docker
+
+1. **Setup Environment**:
+   ```bash
+   # Linux/macOS
+   ./docker-setup.sh
+
+   # Windows PowerShell
+   .\docker-setup.ps1
+   ```
+
+2. **Start Production Environment**:
+   ```bash
+   docker-compose --env-file .env.docker up -d
+   ```
+
+3. **Start Development Environment**:
+   ```bash
+   docker-compose -f docker-compose.dev.yml --env-file .env.docker.dev up -d
+   ```
+
+### Docker Architecture
+
+The system uses a multi-container architecture:
+- **IL2CPP MCP Server**: Main application container with Xenova embeddings
+- **Supabase Database**: PostgreSQL with pgvector extension
+- **Supabase REST API**: PostgREST API gateway
+- **Kong Gateway**: API gateway and routing (production)
+- **Supabase Studio**: Database management UI (development)
+
+### Recent Docker Improvements
+
+✅ **Fixed Xenova Model Loading**: Proper path resolution and timeout handling
+✅ **Enhanced Memory Management**: Increased limits for model loading (4GB)
+✅ **Improved Startup Times**: Extended health check periods (5 minutes)
+✅ **Better Error Handling**: Retry logic and graceful failure recovery
+✅ **Volume Optimization**: Named volumes for better cross-platform compatibility
+
+### Troubleshooting
+
+If you encounter Docker issues, see [DOCKER-TROUBLESHOOTING.md](./DOCKER-TROUBLESHOOTING.md) for detailed solutions.
 
 ## Contributing
 

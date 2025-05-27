@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IL2CPP MCP SSE Client</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .connection-panel {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .tools-panel, .results-panel {
+            margin-top: 20px;
+        }
+        .tool-button {
+            background: #28a745;
+            margin: 5px;
+        }
+        .tool-button:hover {
+            background: #218838;
+        }
+        .results {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .log {
+            background: #343a40;
+            color: #ffffff;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 IL2CPP MCP SSE Client</h1>
+            <p>Real-time connection to IL2CPP Dump Analyzer MCP Server</p>
+        </div>
+
+        <div class="connection-panel">
+            <h3>🔌 Connection Settings</h3>
+            <div class="grid">
+                <div class="input-group">
+                    <label for="serverUrl">Server URL:</label>
+                    <input type="text" id="serverUrl" value="http://localhost:3000" placeholder="http://your-server:3000">
+                </div>
+                <div class="input-group">
+                    <label for="apiKey">API Key (optional):</label>
+                    <input type="password" id="apiKey" placeholder="your_api_key_here">
+                </div>
+            </div>
+            <button id="connectBtn" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+            <div id="status" class="status disconnected">Disconnected</div>
+        </div>
+
+        <div class="tools-panel">
+            <h3>🛠️ Available Tools</h3>
+            <button class="tool-button" onclick="listTools()" disabled id="listToolsBtn">List Tools</button>
+            <button class="tool-button" onclick="searchCode()" disabled id="searchCodeBtn">Search Code</button>
+            <button class="tool-button" onclick="findClassHierarchy()" disabled id="findClassBtn">Find Class Hierarchy</button>
+            <button class="tool-button" onclick="findMonoBehaviours()" disabled id="findMonoBtn">Find MonoBehaviours</button>
+            
+            <div class="input-group" style="margin-top: 15px;">
+                <label for="searchQuery">Search Query:</label>
+                <input type="text" id="searchQuery" value="MonoBehaviour" placeholder="Enter search term...">
+            </div>
+            <div class="input-group">
+                <label for="className">Class Name:</label>
+                <input type="text" id="className" value="PlayerController" placeholder="Enter class name...">
+            </div>
+        </div>
+
+        <div class="results-panel">
+            <h3>📊 Results</h3>
+            <div id="results" class="results">Results will appear here...</div>
+            
+            <h3>📝 Connection Log</h3>
+            <div id="log" class="log">Connection log will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let sessionId = null;
+        let messageId = 1;
+        let pendingRequests = new Map();
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateStatus(status, message) {
+            const statusElement = document.getElementById('status');
+            statusElement.className = `status ${status}`;
+            statusElement.textContent = message;
+        }
+
+        function updateResults(data) {
+            const resultsElement = document.getElementById('results');
+            resultsElement.textContent = JSON.stringify(data, null, 2);
+        }
+
+        function enableTools(enabled) {
+            const toolButtons = ['listToolsBtn', 'searchCodeBtn', 'findClassBtn', 'findMonoBtn'];
+            toolButtons.forEach(id => {
+                document.getElementById(id).disabled = !enabled;
+            });
+        }
+
+        async function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const apiKey = document.getElementById('apiKey').value;
+
+            if (!serverUrl) {
+                alert('Please enter a server URL');
+                return;
+            }
+
+            try {
+                updateStatus('connecting', 'Connecting...');
+                log('Attempting to connect to ' + serverUrl);
+
+                // Set up headers
+                const headers = {};
+                if (apiKey) {
+                    headers['X-API-Key'] = apiKey;
+                }
+
+                // Create EventSource
+                eventSource = new EventSource(serverUrl);
+
+                eventSource.onopen = function() {
+                    updateStatus('connected', 'Connected via SSE');
+                    log('SSE connection established');
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    
+                    // Send initialization
+                    initialize();
+                };
+
+                eventSource.onmessage = function(event) {
+                    handleMessage(event);
+                };
+
+                eventSource.onerror = function(error) {
+                    log('SSE error: ' + error);
+                    updateStatus('disconnected', 'Connection error');
+                    enableTools(false);
+                };
+
+            } catch (error) {
+                log('Connection failed: ' + error.message);
+                updateStatus('disconnected', 'Connection failed');
+            }
+        }
+
+        function disconnect() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                sessionId = null;
+                pendingRequests.clear();
+            }
+            
+            updateStatus('disconnected', 'Disconnected');
+            log('Disconnected from server');
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            enableTools(false);
+        }
+
+        function handleMessage(event) {
+            try {
+                const data = JSON.parse(event.data);
+                log('Received: ' + data.method || 'response');
+
+                // Extract session ID
+                if (data.result && data.result.sessionId) {
+                    sessionId = data.result.sessionId;
+                    log('Session ID: ' + sessionId);
+                    enableTools(true);
+                }
+
+                // Handle responses
+                if (data.id && pendingRequests.has(data.id)) {
+                    const { resolve, reject } = pendingRequests.get(data.id);
+                    pendingRequests.delete(data.id);
+
+                    if (data.error) {
+                        reject(new Error(data.error.message));
+                        log('Error: ' + data.error.message);
+                    } else {
+                        resolve(data.result);
+                        updateResults(data.result);
+                    }
+                }
+
+            } catch (error) {
+                log('Error parsing message: ' + error.message);
+            }
+        }
+
+        async function sendMessage(method, params = {}) {
+            if (!eventSource || eventSource.readyState !== EventSource.OPEN) {
+                throw new Error('Not connected to server');
+            }
+
+            const id = messageId++;
+            const message = {
+                jsonrpc: '2.0',
+                id: id,
+                method: method,
+                params: params
+            };
+
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            const apiKey = document.getElementById('apiKey').value;
+            if (apiKey) {
+                headers['X-API-Key'] = apiKey;
+            }
+
+            if (sessionId) {
+                headers['X-Session-ID'] = sessionId;
+            }
+
+            try {
+                log('Sending: ' + method);
+                
+                const response = await fetch(document.getElementById('serverUrl').value, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(message)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // Return promise that resolves when response comes via SSE
+                return new Promise((resolve, reject) => {
+                    pendingRequests.set(id, { resolve, reject });
+                    
+                    setTimeout(() => {
+                        if (pendingRequests.has(id)) {
+                            pendingRequests.delete(id);
+                            reject(new Error('Request timeout'));
+                        }
+                    }, 30000);
+                });
+
+            } catch (error) {
+                log('Send error: ' + error.message);
+                throw error;
+            }
+        }
+
+        async function initialize() {
+            try {
+                await sendMessage('initialize', {
+                    protocolVersion: '2024-11-05',
+                    capabilities: { tools: {} },
+                    clientInfo: {
+                        name: 'Web SSE Client',
+                        version: '1.0.0'
+                    }
+                });
+                log('Initialized successfully');
+            } catch (error) {
+                log('Initialization failed: ' + error.message);
+            }
+        }
+
+        async function listTools() {
+            try {
+                const result = await sendMessage('tools/list');
+                log('Tools listed: ' + result.tools.length + ' tools');
+            } catch (error) {
+                log('List tools failed: ' + error.message);
+            }
+        }
+
+        async function searchCode() {
+            const query = document.getElementById('searchQuery').value;
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+
+            try {
+                const result = await sendMessage('tools/call', {
+                    name: 'search_code',
+                    arguments: {
+                        query: query,
+                        top_k: 5,
+                        filter_type: 'class'
+                    }
+                });
+                log('Search completed: ' + result.results.length + ' results');
+            } catch (error) {
+                log('Search failed: ' + error.message);
+            }
+        }
+
+        async function findClassHierarchy() {
+            const className = document.getElementById('className').value;
+            if (!className) {
+                alert('Please enter a class name');
+                return;
+            }
+
+            try {
+                const result = await sendMessage('tools/call', {
+                    name: 'find_class_hierarchy',
+                    arguments: {
+                        class_name: className,
+                        include_methods: true,
+                        max_depth: 3
+                    }
+                });
+                log('Class hierarchy found');
+            } catch (error) {
+                log('Find class hierarchy failed: ' + error.message);
+            }
+        }
+
+        async function findMonoBehaviours() {
+            try {
+                const result = await sendMessage('tools/call', {
+                    name: 'find_monobehaviours',
+                    arguments: {
+                        include_methods: true,
+                        filter_active: true
+                    }
+                });
+                log('MonoBehaviours found: ' + result.monobehaviours.length);
+            } catch (error) {
+                log('Find MonoBehaviours failed: ' + error.message);
+            }
+        }
+
+        // Handle page unload
+        window.addEventListener('beforeunload', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import { Embeddings } from '@langchain/core/embeddings';
+import * as path from 'path';
 
 // We'll use dynamic import for the Xenova transformers package since it's an ESM module
 let pipeline: any;
@@ -12,10 +13,20 @@ async function loadTransformers() {
     pipeline = transformers.pipeline;
     env = transformers.env;
 
-    // Set environment variables for Xenova
+    // Set environment variables for Xenova with proper Docker support
     env.allowLocalModels = false;
     env.useBrowserCache = false;
-    env.cacheDir = './models'; // Cache models locally for faster loading
+    // Use absolute path with environment variable for Docker compatibility
+    env.cacheDir = path.resolve(process.env.MODEL_CACHE_PATH || '/app/models');
+
+    // Ensure cache directory exists and is writable
+    const fs = await import('fs');
+    try {
+      await fs.promises.mkdir(env.cacheDir, { recursive: true });
+      console.log(`✓ Xenova model cache directory ready: ${env.cacheDir}`);
+    } catch (error) {
+      console.warn(`Warning: Could not create model cache directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
 
     return { pipeline, env, transformers };
   } catch (error) {
@@ -45,21 +56,41 @@ export class XenovaEmbeddings extends Embeddings {
   }
 
   /**
-   * Initialize the embedding pipeline
+   * Initialize the embedding pipeline with Docker-friendly error handling
    */
   private async initialize(): Promise<void> {
-    try {
-      console.log(`Initializing Xenova embeddings model: ${this.model}`);
+    const maxRetries = 3;
+    const retryDelay = 5000; // 5 seconds
 
-      // Load the transformers library
-      await loadTransformers();
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Initializing Xenova embeddings model: ${this.model} (attempt ${attempt}/${maxRetries})`);
 
-      // Initialize the pipeline
-      this.embeddingPipeline = await pipeline('feature-extraction', this.model);
-      console.log('Xenova embeddings model initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize Xenova embeddings model:', error);
-      throw error;
+        // Load the transformers library
+        await loadTransformers();
+
+        // Initialize the pipeline with timeout for Docker environments
+        console.log('Loading embedding model... This may take a few minutes on first run.');
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Model loading timeout')), 300000); // 5 minutes
+        });
+
+        const modelPromise = pipeline('feature-extraction', this.model);
+        this.embeddingPipeline = await Promise.race([modelPromise, timeoutPromise]);
+
+        console.log('✓ Xenova embeddings model initialized successfully');
+        return; // Success, exit retry loop
+
+      } catch (error) {
+        console.error(`Failed to initialize Xenova embeddings model (attempt ${attempt}/${maxRetries}):`, error);
+
+        if (attempt === maxRetries) {
+          throw new Error(`Failed to initialize Xenova embeddings after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+
+        console.log(`Retrying in ${retryDelay / 1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
     }
   }
 

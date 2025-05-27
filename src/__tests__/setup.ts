@@ -34,9 +34,9 @@ jest.setTimeout(30000);
 
 // Mock external dependencies that are not available in test environment
 jest.mock('@xenova/transformers', () => ({
-  pipeline: jest.fn().mockResolvedValue({
-    encode: jest.fn().mockResolvedValue([0.1, 0.2, 0.3, 0.4])
-  }),
+  pipeline: jest.fn(() => Promise.resolve({
+    encode: jest.fn(() => Promise.resolve([0.1, 0.2, 0.3, 0.4]))
+  })),
   env: {
     allowLocalModels: true,
     allowRemoteModels: false
@@ -63,19 +63,18 @@ jest.mock('@supabase/supabase-js', () => ({
         error: null
       })
     }),
-    rpc: jest.fn().mockResolvedValue({
+    rpc: jest.fn(() => Promise.resolve({
       data: [],
       error: null
-    })
+    }))
   })
 }));
 
-// Mock file system operations
+// Mock file system operations - but allow actual file reading for tests
+const actualFs = jest.requireActual('fs');
 jest.mock('fs', () => ({
-  ...jest.requireActual('fs'),
-  readFileSync: jest.fn(),
+  ...(actualFs as any),
   writeFileSync: jest.fn(),
-  existsSync: jest.fn().mockReturnValue(true),
   promises: {
     readFile: jest.fn(),
     writeFile: jest.fn(),
@@ -95,13 +94,13 @@ global.testUtils = {
       ...metadata
     }
   }),
-  
+
   createMockVectorStore: () => ({
-    similaritySearch: jest.fn().mockResolvedValue([]),
-    searchWithFilter: jest.fn().mockResolvedValue([]),
-    addDocuments: jest.fn().mockResolvedValue(undefined)
+    similaritySearch: jest.fn(() => Promise.resolve([])),
+    searchWithFilter: jest.fn(() => Promise.resolve([])),
+    addDocuments: jest.fn(() => Promise.resolve(undefined))
   }),
-  
+
   delay: (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 };
 

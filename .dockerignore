@@ -1,0 +1,159 @@
+# IL2CPP Dump Analyzer MCP - Docker Build Optimization
+# Exclude unnecessary files from Docker build context
+
+# =============================================================================
+# Node.js and npm
+# =============================================================================
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+.pnpm-debug.log*
+mcp.json
+# =============================================================================
+# Build outputs and compiled files
+# =============================================================================
+dist
+build
+*.tsbuildinfo
+*.js.map
+
+# =============================================================================
+# Development and testing files
+# =============================================================================
+coverage
+.nyc_output
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+src/__tests__
+test
+tests
+__tests__
+
+# =============================================================================
+# Environment and configuration files
+# =============================================================================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+*.env
+!.env.example
+
+# =============================================================================
+# IDE and editor files
+# =============================================================================
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Version control
+# =============================================================================
+.git
+.gitignore
+.gitattributes
+.github
+
+# =============================================================================
+# Documentation and project files
+# =============================================================================
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+docs
+documentation
+
+# =============================================================================
+# Temporary and cache files
+# =============================================================================
+tmp
+temp
+.tmp
+.cache
+.parcel-cache
+*.log
+logs
+
+# =============================================================================
+# Package manager files
+# =============================================================================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# =============================================================================
+# IL2CPP specific files (will be mounted as volumes)
+# =============================================================================
+dump.cs
+*.cs
+models
+cache
+data
+
+# =============================================================================
+# Docker files (avoid recursive copying)
+# =============================================================================
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# =============================================================================
+# CI/CD and deployment files
+# =============================================================================
+.github
+.gitlab-ci.yml
+.travis.yml
+.circleci
+Jenkinsfile
+
+# =============================================================================
+# Backup and temporary files
+# =============================================================================
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.swp
+*.tmp
+
+# =============================================================================
+# OS generated files
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =============================================================================
+# Project specific exclusions
+# =============================================================================
+# Compiled packages and distributions
+*.tgz
+*.tar.gz
+il2cpp-dump-analyzer-mcp-*.tgz
+
+# MCP configuration files (will be mounted)
+mcp*.json
+augment-mcp-config.json
+
+# Hash and state files
+processed_files.json
+*.hash
+
+# Rules and planning documents
+rules/

@@ -32,8 +32,20 @@ export class SupabaseIL2CPPVectorStore {
     // Get the dimensions from the embeddings model
     this.dimensions = (embeddings as any).getDimension?.() || 384;
 
-    // Create Supabase client
-    this.supabaseClient = createClient(supabaseUrl, supabaseKey);
+    // Create Supabase client with Docker-compatible configuration
+    this.supabaseClient = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      },
+      // Remove problematic header overrides for Docker networking
+      global: {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    });
 
     console.log(`Initialized Supabase vector store with dimensions: ${this.dimensions}`);
 

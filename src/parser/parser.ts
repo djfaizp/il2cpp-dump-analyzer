@@ -13,13 +13,16 @@ export interface IL2CPPClass {
   fields: IL2CPPField[];
   methods: IL2CPPMethod[];
   isMonoBehaviour: boolean;
+  isStruct?: boolean;
   typeDefIndex: number;
+  attributes: string[];
 }
 
 export interface IL2CPPField {
   name: string;
   type: string;
   isPublic: boolean;
+  isPrivate?: boolean;
   isStatic: boolean;
   isReadOnly: boolean;
   attributes: string[];
@@ -31,10 +34,14 @@ export interface IL2CPPMethod {
   returnType: string;
   parameters: IL2CPPParameter[];
   isPublic: boolean;
+  isPrivate?: boolean;
   isStatic: boolean;
   isVirtual: boolean;
   isAbstract: boolean;
   isOverride: boolean;
+  isGeneric?: boolean;
+  genericConstraints?: string;
+  slot?: number;
   attributes: string[];
   rva: string;
   offset: string;
@@ -59,6 +66,26 @@ export interface IL2CPPInterface {
   fullName: string;
   methods: IL2CPPMethod[];
   typeDefIndex: number;
+}
+
+// Enhanced parser result types
+export interface ParseStatistics {
+  totalConstructs: number;
+  classCount: number;
+  enumCount: number;
+  interfaceCount: number;
+  methodCount: number;
+  fieldCount: number;
+  parseErrors: number;
+  parsingCoverage: number;
+}
+
+export interface EnhancedParseResult {
+  classes: IL2CPPClass[];
+  enums: IL2CPPEnum[];
+  interfaces: IL2CPPInterface[];
+  imageMappings: Map<number, string>;
+  statistics: ParseStatistics;
 }
 
 // Global parser instance
@@ -89,7 +116,7 @@ export async function parseIL2CPPDump(filePath: string): Promise<{
 
   const fileContent = fs.readFileSync(filePath, 'utf8');
   const tree = parser.parse(fileContent);
-  
+
   // Parse the syntax tree to extract IL2CPP entities
   const classes: IL2CPPClass[] = [];
   const enums: IL2CPPEnum[] = [];
@@ -97,7 +124,7 @@ export async function parseIL2CPPDump(filePath: string): Promise<{
 
   // Root node of the syntax tree
   const rootNode = tree.rootNode;
-  
+
   // Process each class, enum, and interface declaration
   traverseTree(rootNode, classes, enums, interfaces);
 
@@ -124,7 +151,7 @@ function traverseTree(
       classes.push(classEntity);
     }
   }
-  
+
   // Process enum declarations
   else if (node.type === 'enum_declaration') {
     const enumEntity = parseEnumDeclaration(node);
@@ -132,7 +159,7 @@ function traverseTree(
       enums.push(enumEntity);
     }
   }
-  
+
   // Process interface declarations
   else if (node.type === 'interface_declaration') {
     const interfaceEntity = parseInterfaceDeclaration(node);
@@ -140,7 +167,7 @@ function traverseTree(
       interfaces.push(interfaceEntity);
     }
   }
-  
+
   // Recursively process child nodes
   for (let i = 0; i < node.childCount; i++) {
     traverseTree(node.child(i)!, classes, enums, interfaces);
