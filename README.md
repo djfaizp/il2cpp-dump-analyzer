@@ -1,35 +1,41 @@
-# Unity IL2CPP Dump Analyzer MCP System
+# IL2CPP Dump Analyzer Agentic RAG MCP System
 
-A specialized Retrieval-Augmented Generation (RAG) system for analyzing IL2CPP dump.cs files from Unity games. This system implements the Model Context Protocol (MCP) server specification using the official MCP TypeScript SDK to enable standardized interactions with LLM clients like Claude Desktop, GPT, and other MCP-compatible tools.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3.3-blue)](https://www.typescriptlang.org/)
+[![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-purple)](https://modelcontextprotocol.io/)
+[![Docker Support](https://img.shields.io/badge/Docker-Supported-blue)](https://www.docker.com/)
 
-## Features
+A cutting-edge **Agentic Retrieval-Augmented Generation (RAG)** system for analyzing IL2CPP dump.cs files from Unity games. This system implements the Model Context Protocol (MCP) server specification with **intelligent agentic capabilities** that provide automated task orchestration, context-aware analysis, and enhanced workflow execution within the MCP framework.
 
-### Core Capabilities
-- **IL2CPP Dump File Processing**: Parse and analyze IL2CPP dump.cs files (C# code decompiled from Unity IL2CPP builds)
-- **Semantic Code Chunking**: Specialized IL2CPPCodeChunker preserves code context and meaning
-- **Advanced Embeddings**: Uses Xenova's Transformers.js with the all-MiniLM-L6-v2 model (384-dimensional embeddings)
+## 🚀 Key Features
+
+### 🤖 Agentic Intelligence Layer
+- **Intelligent MCP Tool Orchestration**: Automatically selects and chains MCP tools for complex analysis tasks
+- **Context-Aware Processing**: Preserves analysis context and results across multiple MCP tool calls
+- **Smart Task Decomposition**: Breaks complex IL2CPP analysis requests into manageable subtasks
+- **Result Synthesis**: Intelligently aggregates and correlates results from multiple MCP tools
+- **Adaptive Caching**: Implements smart caching strategies that learn from usage patterns
+- **Performance Optimization**: Monitors and optimizes agentic workflows for speed and efficiency
+
+### 🔍 Advanced IL2CPP Analysis
+- **Semantic Code Processing**: Specialized IL2CPPCodeChunker preserves code context and meaning
+- **Vector-Powered Search**: Uses Xenova's Transformers.js with all-MiniLM-L6-v2 model (384-dimensional embeddings)
 - **Supabase Vector Database**: High-performance vector search with pgvector extension
-- **Hash-based Change Detection**: Avoid reprocessing unchanged files for efficiency
+- **Hash-based Change Detection**: Intelligent change detection to avoid reprocessing unchanged files
+- **Metadata Extraction**: Comprehensive assembly metadata, version tracking, and compilation analysis
 
-### Advanced Analysis Tools
-- **MonoBehaviour Discovery**: Find and analyze Unity component classes
-- **Class Hierarchy Analysis**: Explore inheritance relationships and dependencies
-- **Cross-Reference Analysis**: Track usage patterns and relationships between code entities
-- **Design Pattern Detection**: Identify common design patterns (Singleton, Observer, Factory, etc.)
-- **Dependency Mapping**: Analyze incoming/outgoing dependencies and circular references
-- **Enum Value Extraction**: Retrieve enum definitions and their values
+### 🛠️ Comprehensive Tool Suite (21 MCP Tools)
+- **Search Tools (3)**: Semantic code search, metadata search, and advanced querying
+- **Analysis Tools (15)**: MonoBehaviour discovery, class hierarchies, design patterns, dependencies, and asset analysis
+- **Generation Tools (3)**: C# wrapper generation, method stubs, and Unity MonoBehaviour templates
 
-### Code Generation Tools
-- **Class Wrapper Generation**: Generate C# wrapper classes from IL2CPP class definitions
-- **Method Stub Generation**: Create method stubs with proper signatures and basic implementation
-- **MonoBehaviour Template Generation**: Generate Unity-ready MonoBehaviour scripts with lifecycle methods
-
-### MCP Integration
-- **Official MCP SDK**: Full compliance with Model Context Protocol specification
-- **Stdio Transport**: Optimized for command-line tools and desktop applications
-- **Comprehensive Tool Suite**: 6 specialized MCP tools for IL2CPP analysis
-- **Input Validation**: Zod schemas ensure robust parameter validation
-- **Error Handling**: Comprehensive error management with detailed logging
+### 🔌 MCP Integration Excellence
+- **Official MCP SDK**: Full compliance with Model Context Protocol specification v1.12.0
+- **Multiple Transports**: Stdio, HTTP, and Server-Sent Events (SSE) support
+- **Robust Validation**: Zod schemas ensure comprehensive parameter validation
+- **Advanced Error Handling**: Intelligent error recovery with detailed logging and retry mechanisms
+- **Resource Management**: Efficient memory usage and connection pooling
 
 ## Prerequisites
 
@@ -134,12 +140,14 @@ node ./bin/il2cpp-mcp-stdio.js
 npm run mcp:stdio
 ```
 
-## MCP Tools and Resources
+## 🛠️ MCP Tools and Resources
 
-The server provides 10 comprehensive MCP tools for IL2CPP analysis and code generation:
+The server provides **21 comprehensive MCP tools** organized into three categories for IL2CPP analysis and code generation:
 
-### 1. `search_code` - General Code Search
-Search for code entities with advanced filtering capabilities.
+### 🔍 Search Tools (3 tools)
+
+#### 1. `search_code` - Semantic Code Search
+Advanced semantic search through IL2CPP code with intelligent filtering.
 
 **Parameters:**
 - `query` (string, required): The search query
@@ -150,191 +158,251 @@ Search for code entities with advanced filtering capabilities.
 
 **Example:**
 ```typescript
-// Find all Player-related classes
-search_code({ query: "Player", filter_type: "class", top_k: 10 })
+// Find all Player-related classes with semantic search
+search_code({ query: "Player movement controller", filter_type: "class", top_k: 10 })
 ```
 
-### 2. `find_monobehaviours` - Unity Component Discovery
-Find MonoBehaviour classes for Unity component analysis.
+#### 2. `search_metadata` - Metadata Search
+Search through extracted metadata with flexible filtering and advanced options.
+
+**Parameters:**
+- `query` (string, required): Search query
+- `search_type` (string, optional): Type of search (`assembly`, `type`, `method`, `field`)
+- `assembly_name` (string, optional): Filter by assembly name
+- `unity_version` (string, optional): Filter by Unity version
+- `use_regex` (boolean, optional): Enable regex pattern matching
+- `max_results` (number, optional): Maximum results to return
+
+#### 3. `query_metadata` - Advanced Metadata Querying
+Complex metadata queries with aggregations and cross-references.
+
+**Parameters:**
+- `filters` (object, optional): Complex filtering criteria
+- `aggregations` (array, optional): Aggregation operations (`count`, `group_by`, `statistics`)
+- `cross_reference` (object, optional): Cross-reference analysis configuration
+
+### 🔬 Analysis Tools (15 tools)
+
+#### 4. `find_monobehaviours` - Unity Component Discovery
+Find and analyze MonoBehaviour classes for Unity component analysis.
 
 **Parameters:**
 - `query` (string, optional): Optional search query to filter MonoBehaviours
 - `top_k` (number, optional, default: 10): Number of results to return
 
-**Example:**
-```typescript
-// Find all MonoBehaviour classes related to "Enemy"
-find_monobehaviours({ query: "Enemy", top_k: 5 })
-```
-
-### 3. `find_class_hierarchy` - Class Inheritance Analysis
-Analyze class inheritance relationships and structure.
+#### 5. `find_class_hierarchy` - Class Inheritance Analysis
+Analyze class inheritance relationships and structure with detailed metadata.
 
 **Parameters:**
 - `class_name` (string, required): The name of the class to analyze
 - `include_methods` (boolean, optional, default: true): Include methods in the output
 
-**Example:**
-```typescript
-// Analyze the Player class hierarchy
-find_class_hierarchy({ class_name: "Player", include_methods: true })
-```
-
-### 4. `find_enum_values` - Enum Definition Extraction
-Extract enum definitions and their values.
+#### 6. `find_enum_values` - Enum Definition Extraction
+Extract enum definitions and their values with type information.
 
 **Parameters:**
 - `enum_name` (string, required): The name of the enum to find values for
 
-**Example:**
-```typescript
-// Get values for GameState enum
-find_enum_values({ enum_name: "GameState" })
-```
-
-### 5. `analyze_dependencies` - Dependency Mapping
-Analyze class dependencies and relationships.
+#### 7. `analyze_dependencies` - Dependency Mapping
+Comprehensive dependency analysis with circular dependency detection.
 
 **Parameters:**
 - `class_name` (string, required): Target class to analyze dependencies for
-- `analysis_type` (enum, optional, default: "bidirectional"): Type of analysis (`incoming`, `outgoing`, `bidirectional`, `circular`)
+- `analysis_type` (enum, optional): Type of analysis (`incoming`, `outgoing`, `bidirectional`, `circular`)
 - `depth` (number, optional, default: 3): How deep to traverse dependency chains (1-5)
-- `include_system_types` (boolean, optional, default: false): Include Unity/System dependencies
+- `include_system_types` (boolean, optional): Include Unity/System dependencies
 
-**Example:**
-```typescript
-// Analyze all dependencies for Player class
-analyze_dependencies({
-  class_name: "Player",
-  analysis_type: "bidirectional",
-  depth: 2
-})
-```
-
-### 6. `find_cross_references` - Cross-Reference Analysis
-Find all references to a specific code entity.
+#### 8. `find_cross_references` - Cross-Reference Analysis
+Find all references to specific code entities across the codebase.
 
 **Parameters:**
 - `target_name` (string, required): Name of the target entity
-- `target_type` (enum, required): Type of entity (`class`, `method`, `field`, `property`, `event`, `enum`, `interface`)
-- `reference_type` (enum, optional, default: "all"): Type of references (`usage`, `inheritance`, `implementation`, `declaration`, `all`)
-- `include_nested` (boolean, optional, default: true): Include references within nested types
-- `include_system_types` (boolean, optional, default: false): Include references from Unity/System types
-- `max_results` (number, optional, default: 50): Maximum number of references (1-200)
+- `target_type` (enum, required): Type of entity (`class`, `method`, `field`, `property`, `event`)
+- `reference_type` (enum, optional): Type of references (`usage`, `inheritance`, `implementation`)
+- `max_results` (number, optional): Maximum number of references to return
 
-**Example:**
-```typescript
-// Find all usages of the Transform class
-find_cross_references({
-  target_name: "Transform",
-  target_type: "class",
-  reference_type: "usage",
-  max_results: 100
-})
-```
-
-### 7. `find_design_patterns` - Design Pattern Detection
-Detect common design patterns in the codebase.
+#### 9. `find_design_patterns` - Design Pattern Detection
+Detect common design patterns with confidence scoring and examples.
 
 **Parameters:**
-- `pattern_types` (array, required): Array of patterns to detect (`singleton`, `observer`, `factory`, `strategy`, `command`, `state`, `decorator`, `adapter`, `facade`, `proxy`, `builder`, `template_method`, `chain_of_responsibility`, `mediator`, `memento`, `visitor`, `flyweight`, `composite`, `bridge`, `abstract_factory`, `prototype`, `iterator`)
-- `confidence_threshold` (number, optional, default: 0.7): Minimum confidence level (0.1-1.0)
-- `include_partial_matches` (boolean, optional, default: true): Include partial pattern implementations
-- `namespace_scope` (string, optional): Limit search to specific namespace pattern
-- `exclude_unity_patterns` (boolean, optional, default: false): Exclude Unity-specific patterns
-- `max_results_per_pattern` (number, optional, default: 10): Maximum results per pattern (1-50)
+- `pattern_types` (array, required): Array of patterns to detect (`singleton`, `observer`, `factory`, `strategy`, etc.)
+- `confidence_threshold` (number, optional): Minimum confidence level (0.1-1.0)
+- `include_partial_matches` (boolean, optional): Include partial pattern implementations
 
-**Example:**
-```typescript
-// Detect Singleton and Observer patterns
-find_design_patterns({
-  pattern_types: ["singleton", "observer"],
-  confidence_threshold: 0.8,
-  include_partial_matches: false
-})
-```
+#### 10. `extract_metadata` - Assembly Metadata Extraction
+Extract comprehensive assembly metadata, version information, and compilation flags.
 
-### 8. `generate_class_wrapper` - C# Class Wrapper Generation
+**Parameters:**
+- `content` (string, optional): IL2CPP dump content
+- `file_path` (string, optional): Path to IL2CPP dump file
+- `include_generic_instantiations` (boolean, optional): Include generic type instantiations
+- `validate_structure` (boolean, optional): Validate extracted metadata structure
+
+#### 11. `analyze_type_hierarchies` - Type System Analysis
+Analyze complex type hierarchies including generics and constraints.
+
+**Parameters:**
+- `type_name` (string, required): Target type to analyze
+- `include_constraints` (boolean, optional): Include generic constraints
+- `max_depth` (number, optional): Maximum hierarchy depth to analyze
+
+#### 12. `analyze_generic_types` - Generic Type Analysis
+Specialized analysis of generic types and their instantiations.
+
+**Parameters:**
+- `type_name` (string, required): Generic type to analyze
+- `include_instantiations` (boolean, optional): Include all instantiations
+- `constraint_analysis` (boolean, optional): Analyze type constraints
+
+#### 13. `analyze_type_dependencies` - Type Dependency Analysis
+Analyze dependencies between types with detailed relationship mapping.
+
+**Parameters:**
+- `type_name` (string, required): Target type for dependency analysis
+- `dependency_type` (enum, optional): Type of dependencies to analyze
+- `include_indirect` (boolean, optional): Include indirect dependencies
+
+#### 14. `analyze_type_compatibility` - Type Compatibility Analysis
+Analyze type compatibility and conversion possibilities.
+
+**Parameters:**
+- `source_type` (string, required): Source type name
+- `target_type` (string, required): Target type name
+- `include_implicit_conversions` (boolean, optional): Include implicit conversions
+
+#### 15. `track_assembly_metadata` - Assembly Version Tracking
+Track assembly metadata changes and version comparisons.
+
+**Parameters:**
+- `tracking_id` (string, required): Unique tracking identifier
+- `comparison_mode` (enum, optional): Comparison mode (`full`, `incremental`, `diff`)
+- `include_dependencies` (boolean, optional): Include dependency tracking
+
+#### 16. `analyze_asset_references` - Asset Reference Analysis
+Analyze asset references and dependencies within IL2CPP code.
+
+**Parameters:**
+- `asset_type` (string, optional): Type of assets to analyze
+- `include_missing_references` (boolean, optional): Include missing asset references
+- `reference_depth` (number, optional): Depth of reference analysis
+
+#### 17. `find_unused_assets` - Unused Asset Detection
+Find potentially unused assets based on IL2CPP code analysis.
+
+**Parameters:**
+- `asset_types` (array, optional): Types of assets to check for usage
+- `exclude_patterns` (array, optional): Patterns to exclude from analysis
+- `confidence_threshold` (number, optional): Confidence threshold for unused detection
+
+#### 18. `analyze_asset_dependencies` - Asset Dependency Analysis
+Comprehensive analysis of asset dependencies and circular references.
+
+**Parameters:**
+- `include_circular_dependencies` (boolean, optional): Include circular dependency detection
+- `asset_type_filter` (array, optional): Filter by specific asset types
+- `dependency_depth` (number, optional): Maximum dependency depth to analyze
+
+### ⚙️ Generation Tools (3 tools)
+
+#### 19. `generate_class_wrapper` - C# Class Wrapper Generation
 Generate C# wrapper classes from IL2CPP class definitions with full type fidelity.
 
 **Parameters:**
 - `class_name` (string, required): Name of the IL2CPP class to generate wrapper for
-- `include_documentation` (boolean, optional, default: true): Include XML documentation comments
-- `include_unity_attributes` (boolean, optional, default: true): Include Unity-specific attributes
-- `include_serialization` (boolean, optional, default: true): Include serialization attributes
+- `include_methods` (boolean, optional): Include method implementations
+- `include_properties` (boolean, optional): Include property implementations
+- `generate_interfaces` (boolean, optional): Generate interface definitions
 - `custom_namespace` (string, optional): Custom namespace for generated code
-- `unity_version` (string, optional): Target Unity version (e.g., '2021.3.0')
-- `additional_usings` (array, optional): Additional using statements to include
+- `unity_version` (string, optional): Target Unity version
 
 **Example:**
 ```typescript
-// Generate wrapper for Player class
+// Generate comprehensive wrapper for Player class
 generate_class_wrapper({
   class_name: "Player",
-  include_documentation: true,
-  include_unity_attributes: true,
-  unity_version: "2022.3.0",
-  additional_usings: ["System.Collections.Generic"]
+  include_methods: true,
+  generate_interfaces: true,
+  custom_namespace: "Game.Wrappers"
 })
 ```
 
-### 9. `generate_method_stubs` - Method Stub Generation
-Generate method stubs with correct signatures and basic implementation from IL2CPP methods.
+#### 20. `generate_method_stubs` - Method Stub Generation
+Generate method stubs and interfaces from IL2CPP class definitions.
 
 **Parameters:**
 - `class_name` (string, required): Name of the IL2CPP class to generate method stubs for
-- `method_filter` (string, optional): Optional regex pattern to match specific methods
-- `include_documentation` (boolean, optional, default: true): Include XML documentation comments
-- `include_error_handling` (boolean, optional, default: true): Include error handling and validation
-- `generate_async` (boolean, optional, default: false): Generate async/await patterns where applicable
-- `custom_namespace` (string, optional): Custom namespace for generated code
-- `unity_version` (string, optional): Target Unity version
-- `additional_usings` (array, optional): Additional using statements to include
+- `method_filter` (string, optional): Regex pattern to match specific methods
+- `include_documentation` (boolean, optional): Include XML documentation comments
+- `include_error_handling` (boolean, optional): Include error handling and validation
+- `generate_async` (boolean, optional): Generate async/await patterns where applicable
 
-**Example:**
-```typescript
-// Generate method stubs for Player class
-generate_method_stubs({
-  class_name: "Player",
-  method_filter: "Move.*",
-  include_error_handling: true,
-  generate_async: false
-})
-```
-
-### 10. `generate_monobehaviour_template` - Unity MonoBehaviour Template Generation
-Generate Unity-ready MonoBehaviour scripts with proper lifecycle methods and serialization.
+#### 21. `generate_monobehaviour_template` - Unity MonoBehaviour Template Generation
+Generate Unity-ready MonoBehaviour scripts with common patterns and lifecycle methods.
 
 **Parameters:**
-- `class_name` (string, required): Name of the IL2CPP MonoBehaviour class to generate template for
-- `include_documentation` (boolean, optional, default: true): Include XML documentation comments
-- `include_unity_attributes` (boolean, optional, default: true): Include Unity-specific attributes (SerializeField, etc.)
-- `include_serialization` (boolean, optional, default: true): Include serialization attributes
-- `custom_namespace` (string, optional): Custom namespace for generated code
-- `unity_version` (string, optional): Target Unity version (e.g., '2021.3.0')
-- `additional_usings` (array, optional): Additional using statements to include
+- `class_name` (string, required): Name of the IL2CPP MonoBehaviour class
+- `template_type` (string, optional): Template type (`basic`, `ui`, `gameplay`, `system`)
+- `include_lifecycle_methods` (boolean, optional): Include Unity lifecycle methods
+- `include_unity_events` (boolean, optional): Include UnityEvent implementations
+- `include_serialized_fields` (boolean, optional): Include SerializeField attributes
 
-**Example:**
+## 🤖 Agentic Workflows and Usage Examples
+
+### Intelligent Tool Orchestration
+
+The agentic layer automatically chains tools for complex analysis tasks:
+
 ```typescript
-// Generate MonoBehaviour template for EnemyController
-generate_monobehaviour_template({
-  class_name: "EnemyController",
-  include_unity_attributes: true,
-  unity_version: "2022.3.0",
-  custom_namespace: "Game.Enemies"
-})
+// Example: Comprehensive Player class analysis
+// The system automatically orchestrates multiple tools:
+
+1. search_code({ query: "Player", filter_type: "class" })
+2. find_class_hierarchy({ class_name: "Player" })
+3. analyze_dependencies({ class_name: "Player", analysis_type: "bidirectional" })
+4. find_design_patterns({ pattern_types: ["singleton", "observer"] })
+5. generate_class_wrapper({ class_name: "Player", include_methods: true })
+
+// All executed intelligently with context preservation
 ```
+
+### Context-Aware Analysis
+
+```typescript
+// Example: MonoBehaviour ecosystem analysis
+// The agent maintains context across tool calls:
+
+1. find_monobehaviours({ query: "Enemy" })
+   // Context: Found EnemyController, EnemyAI, EnemyHealth
+
+2. analyze_dependencies({ class_name: "EnemyController" })
+   // Context: Uses previous results to analyze dependencies
+
+3. find_cross_references({ target_name: "EnemyController", target_type: "class" })
+   // Context: Correlates with dependency analysis
+
+4. generate_monobehaviour_template({ class_name: "EnemyController" })
+   // Context: Uses all previous analysis for optimal template generation
+```
+
+### Smart Caching and Performance
+
+The agentic system implements intelligent caching:
+- **Result Caching**: Frequently accessed analysis results are cached
+- **Context Persistence**: Analysis context is preserved across sessions
+- **Performance Learning**: The system learns from usage patterns to optimize future requests
+- **Adaptive Batching**: Related tool calls are automatically batched for efficiency
 
 ### Resources
 
-The server also exposes resources through the MCP resource system:
+The server exposes resources through the MCP resource system:
 
-- `il2cpp://{query}`: Retrieves code snippets matching the query
+- `il2cpp://{query}`: Retrieves code snippets matching the query with intelligent ranking
   - Query parameters:
     - `top_k`: Number of results to return (default: 5)
     - `filter_type`: Filter by entity type (class, method, enum, interface)
     - `filter_namespace`: Filter by namespace
     - `filter_monobehaviour`: Filter to only include MonoBehaviour classes
+    - `context_aware`: Enable context-aware result ranking (default: true)
 
 ## Development
 
@@ -365,23 +433,39 @@ The server also exposes resources through the MCP resource system:
 
 ### Testing
 
-The project includes comprehensive Jest testing infrastructure:
+The project includes comprehensive Jest testing infrastructure with agentic component coverage:
 
-- **Unit tests**: All MCP tools and core functionality
-- **Integration tests**: Vector store operations and Supabase integration
-- **Performance tests**: Large file processing and embedding generation
-- **Error handling tests**: Edge cases and error scenarios
+- **Unit Tests**: All MCP tools, agentic components, and core functionality
+- **Integration Tests**: Vector store operations, Supabase integration, and tool orchestration
+- **Performance Tests**: Large file processing, embedding generation, and agentic workflow optimization
+- **Agentic Tests**: Context management, tool selection, and intelligent orchestration
+- **Error Handling Tests**: Edge cases, error scenarios, and recovery mechanisms
 
 Run specific test suites:
 ```bash
 npm run test:unit        # Unit tests only
 npm run test:integration # Integration tests only
 npm run test:performance # Performance tests only
+npm run test:mcp-tools   # MCP tool-specific tests
+npm run test             # Full test suite including agentic components
+```
+
+### Agentic Component Testing
+
+```bash
+# Test agentic orchestration
+npm run test -- --testPathPattern=agent
+
+# Test intelligent tool selection
+npm run test -- --testPathPattern=mcp-tool-selector
+
+# Test context management
+npm run test -- --testPathPattern=mcp-context-manager
 ```
 
 ### Environment Variables
 
-All available environment variables:
+All available environment variables including agentic configuration:
 
 ```env
 # Core Configuration
@@ -398,6 +482,15 @@ SUPABASE_TABLE_NAME=il2cpp_documents
 # MCP Server Configuration
 MCP_SERVER_PORT=3000
 MCP_SERVER_HOST=0.0.0.0
+
+# Agentic Configuration
+AGENTIC_MODE=true                    # Enable intelligent tool orchestration
+CONTEXT_CACHE_SIZE=1000             # Maximum cached contexts
+TOOL_CHAIN_MAX_DEPTH=5              # Maximum tool chaining depth
+INTELLIGENT_CACHING=true            # Enable smart result caching
+CONTEXT_PERSISTENCE=true            # Enable context persistence across calls
+PERFORMANCE_OPTIMIZATION=true      # Enable performance learning and optimization
+ADAPTIVE_BATCHING=true              # Enable adaptive request batching
 ```
 
 ## Project Structure
@@ -407,9 +500,23 @@ src/
 ├── __tests__/              # Test files and test utilities
 │   ├── setup.ts           # Jest test setup
 │   ├── test-data.ts       # Mock IL2CPP data for testing
+│   ├── agent/             # Agentic component tests
+│   ├── integration/       # Integration tests
+│   ├── mcp/               # MCP tool tests
 │   └── *.test.ts          # Individual test files
+├── agent/                 # Agentic Intelligence Layer
+│   ├── mcp-orchestrator.ts # Intelligent tool orchestration
+│   ├── mcp-context-manager.ts # Context management and persistence
+│   ├── mcp-performance-optimizer.ts # Performance optimization
+│   ├── mcp-response-synthesizer.ts # Multi-tool result synthesis
+│   ├── mcp-tool-selector.ts # AI-driven tool selection
+│   ├── types.ts           # Agentic type definitions
+│   └── index.ts           # Agent exports
 ├── config/                 # Configuration utilities
 ├── database/              # Database connection and management
+│   ├── connection-manager.ts # Database connection pooling
+│   ├── enhanced-vector-store.ts # Enhanced vector operations
+│   └── performance-monitor.ts # Database performance monitoring
 ├── embeddings/            # Embedding generation and vector storage
 │   ├── chunker.ts         # IL2CPP-specific code chunking
 │   ├── xenova-embeddings.ts # Xenova Transformers.js integration
@@ -428,14 +535,38 @@ src/
 ├── mcp/                   # MCP server implementation
 │   ├── mcp-sdk-server.ts  # Main MCP server with all tools
 │   ├── stdio-server.ts    # Stdio transport server
+│   ├── tools/             # MCP tool implementations (21 tools)
+│   │   ├── search-code-tool.ts # Semantic code search
+│   │   ├── find-monobehaviours-tool.ts # MonoBehaviour discovery
+│   │   ├── analyze-dependencies-tool.ts # Dependency analysis
+│   │   ├── generate-class-wrapper-tool.ts # Code generation
+│   │   ├── tool-registry.ts # Tool registration and metadata
+│   │   └── ... (18 more tools)
 │   └── types.ts           # MCP type definitions
+├── metadata/              # Metadata analysis and extraction
+│   └── type-analyzer.ts   # Advanced type analysis
+├── monitoring/            # System monitoring and health
+│   ├── health-service.ts  # Health monitoring
+│   ├── metrics-service.ts # Performance metrics
+│   └── lifecycle-manager.ts # Component lifecycle management
 ├── parser/                # IL2CPP dump file parsing
 │   ├── il2cpp-parser.ts   # Main parser implementation
 │   ├── enhanced-il2cpp-parser.ts # Enhanced parser with metadata
+│   ├── advanced-parser.ts # Advanced parsing capabilities
 │   └── index.ts           # Parser exports
+├── performance/           # Performance optimization
+│   ├── chunked-processor.ts # Chunked processing for large files
+│   ├── batch-vector-store.ts # Batch vector operations
+│   └── streaming-parser.ts # Streaming parser for memory efficiency
+├── transport/             # Transport layer implementations
+│   ├── http-transport.ts  # HTTP transport
+│   ├── transport-factory.ts # Transport factory
+│   └── index.ts           # Transport exports
 └── utils/                 # Utility functions
     ├── hash-manager.ts    # File hash management
-    └── supabase-hash-manager.ts # Supabase-based hash storage
+    ├── supabase-hash-manager.ts # Supabase-based hash storage
+    ├── mcp-response-formatter.ts # Response formatting
+    └── parameter-validator.ts # Parameter validation
 
 bin/
 └── il2cpp-mcp-stdio.js    # Executable MCP server binary
@@ -449,27 +580,38 @@ examples/                   # Code generation examples and documentation
 supabase-setup.sql          # Supabase database schema
 ```
 
-## Architecture
+## 🏗️ Architecture
 
-### Core Components
+### Foundation Layer
+1. **Enhanced IL2CPP Parser**: Advanced parsing with metadata extraction and type analysis
+2. **Semantic Code Chunker**: Context-preserving chunking with IL2CPP-specific optimizations
+3. **Xenova Embeddings Engine**: 384-dimensional embeddings using Transformers.js all-MiniLM-L6-v2
+4. **Supabase Vector Store**: High-performance vector search with pgvector extension
+5. **Hash-based Change Detection**: Intelligent file change tracking and incremental processing
 
-1. **IL2CPP Parser**: Extracts classes, methods, enums, and interfaces from dump files
-2. **Semantic Chunker**: Preserves code context while creating manageable chunks
-3. **Xenova Embeddings**: Generates 384-dimensional embeddings using Transformers.js
-4. **Supabase Vector Store**: High-performance vector search with pgvector
-5. **MCP Server**: Official SDK implementation with 10 specialized tools
-6. **Hash Manager**: Efficient change detection to avoid reprocessing
-7. **Code Generators**: Generate C# code from IL2CPP definitions with full type fidelity
+### Agentic Intelligence Layer
+6. **MCP Tool Orchestrator**: Intelligent tool selection and workflow automation
+7. **Context Manager**: Persistent context across tool calls with smart compression
+8. **Performance Optimizer**: Real-time performance monitoring and optimization
+9. **Response Synthesizer**: Multi-tool result aggregation and correlation
+10. **Tool Selector**: AI-driven tool selection based on task requirements
 
-### Data Flow
+### MCP Server Layer
+11. **MCP SDK Server**: Official MCP TypeScript SDK implementation with 21 specialized tools
+12. **Transport Layer**: Multi-transport support (stdio, HTTP, SSE) with connection pooling
+13. **Validation Engine**: Comprehensive Zod schema validation with error recovery
+14. **Resource Manager**: Efficient memory management and connection handling
 
-1. **Input**: IL2CPP dump.cs file
-2. **Parsing**: Extract code entities with metadata
-3. **Chunking**: Create semantic chunks preserving context
-4. **Embedding**: Generate vectors using all-MiniLM-L6-v2
-5. **Storage**: Store in Supabase with hash-based deduplication
-6. **Analysis**: MCP tools provide advanced analysis capabilities
-7. **Generation**: Code generators create C# implementations from IL2CPP definitions
+### Data Flow with Agentic Enhancement
+
+1. **Input Processing**: IL2CPP dump.cs file with intelligent preprocessing
+2. **Agentic Analysis**: Smart task decomposition and tool selection
+3. **Parallel Processing**: Concurrent parsing, chunking, and embedding generation
+4. **Vector Storage**: Optimized storage in Supabase with intelligent indexing
+5. **Context-Aware Retrieval**: Smart caching and context-aware search
+6. **Multi-Tool Orchestration**: Automated tool chaining for complex analysis
+7. **Result Synthesis**: Intelligent aggregation and correlation of results
+8. **Adaptive Learning**: Performance optimization based on usage patterns
 
 ## MCP SDK Integration
 
@@ -578,23 +720,55 @@ The system uses a multi-container architecture:
 
 If you encounter Docker issues, see [DOCKER-TROUBLESHOOTING.md](./DOCKER-TROUBLESHOOTING.md) for detailed solutions.
 
-## Contributing
+## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes and add tests
-4. Run the test suite: `npm test`
-5. Commit your changes: `git commit -m 'Add amazing feature'`
-6. Push to the branch: `git push origin feature/amazing-feature`
-7. Open a Pull Request
+We welcome contributions to the IL2CPP Dump Analyzer Agentic RAG MCP System! Please follow these guidelines:
+
+### Development Guidelines
+
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-agentic-feature`
+3. **Follow Test-Driven Development (TFD)**: Write tests before implementing features
+4. **Add comprehensive tests**: Include unit, integration, and agentic component tests
+5. **Run the full test suite**: `npm test`
+6. **Test agentic components**: `npm run test -- --testPathPattern=agent`
+7. **Commit your changes**: `git commit -m 'Add amazing agentic feature'`
+8. **Push to the branch**: `git push origin feature/amazing-agentic-feature`
+9. **Open a Pull Request**
+
+### Agentic Development Guidelines
+
+When contributing to agentic components:
+
+- **Context Preservation**: Ensure context is properly managed across tool calls
+- **Performance Optimization**: Consider performance implications of intelligent workflows
+- **Tool Orchestration**: Design workflows that intelligently chain MCP tools
+- **Error Recovery**: Implement robust error handling and recovery mechanisms
+- **Adaptive Learning**: Consider how the system can learn from usage patterns
+
+### Code Quality Standards
+
+- **TypeScript Strict Mode**: Maintain full TypeScript compliance
+- **JSDoc Documentation**: Document all functions with comprehensive JSDoc comments
+- **Zod Validation**: Use Zod schemas for all input validation
+- **MCP Compliance**: Ensure all MCP tools follow the official specification
+- **Agentic Patterns**: Follow established patterns for agentic component development
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
-- [Model Context Protocol](https://modelcontextprotocol.io/) for the MCP specification
-- [Xenova/Transformers.js](https://github.com/xenova/transformers.js) for client-side embeddings
-- [Supabase](https://supabase.com/) for vector database infrastructure
-- Unity Technologies for IL2CPP technology
+- [Model Context Protocol](https://modelcontextprotocol.io/) for the MCP specification and agentic framework foundation
+- [Xenova/Transformers.js](https://github.com/xenova/transformers.js) for client-side embeddings and AI capabilities
+- [Supabase](https://supabase.com/) for vector database infrastructure and real-time capabilities
+- [TypeScript](https://www.typescriptlang.org/) for type safety and development experience
+- Unity Technologies for IL2CPP technology and game development innovation
+- The open-source community for continuous inspiration and collaboration
+
+---
+
+**Built with ❤️ for the Unity game development and reverse engineering community**
+
+*Empowering developers with intelligent IL2CPP analysis through agentic AI and the Model Context Protocol*
