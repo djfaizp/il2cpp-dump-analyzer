@@ -26,6 +26,7 @@ describe('Chunked Processing Tests', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    processor.dispose(); // Clean up parser pool
   });
 
   describe('Basic Chunking Functionality', () => {

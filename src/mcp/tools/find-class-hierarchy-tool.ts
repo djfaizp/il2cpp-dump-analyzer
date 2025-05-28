@@ -99,28 +99,28 @@ export class FindClassHierarchyToolHandler extends BaseAnalysisToolHandler<FindC
       }
 
       const classDoc = classResults[0];
-      const className = classDoc.metadata.name;
-      const baseClass = classDoc.metadata.baseClass;
+      const className = classDoc.metadata.name || 'Unknown';
+      const baseClass = classDoc.metadata.baseClass || 'Object';
 
       this.context.logger.debug(`Analyzing hierarchy for class: ${className}`);
 
       // Step 2: Build basic hierarchy information
       const hierarchyInfo: HierarchyInfo = {
         name: className,
-        namespace: classDoc.metadata.namespace,
-        fullName: classDoc.metadata.fullName,
+        namespace: classDoc.metadata.namespace || '',
+        fullName: classDoc.metadata.fullName || className,
         baseClass: baseClass,
         interfaces: classDoc.metadata.interfaces || [],
         isMonoBehaviour: classDoc.metadata.isMonoBehaviour || false,
         metadata: {
           searchedClass: params.class_name,
-          includesMethods: params.include_methods || true,
+          includesMethods: params.include_methods !== false,
           timestamp: new Date().toISOString()
         }
       };
 
       // Step 3: Find methods if requested
-      if (params.include_methods) {
+      if (params.include_methods !== false) { // Default to true if not specified
         const methodResults = await this.context.vectorStore.searchWithFilter("", {
           type: 'method',
           parentClass: className
@@ -136,6 +136,9 @@ export class FindClassHierarchyToolHandler extends BaseAnalysisToolHandler<FindC
         }));
 
         this.context.logger.debug(`Found ${hierarchyInfo.methods.length} methods for class ${className}`);
+      } else {
+        // Explicitly set methods to undefined when not requested
+        hierarchyInfo.methods = undefined;
       }
 
       return hierarchyInfo;

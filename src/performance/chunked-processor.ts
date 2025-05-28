@@ -3,8 +3,8 @@
  * Implements progressive chunking, resumable processing, and parallel execution for large IL2CPP dumps
  */
 
-import { EnhancedIL2CPPParser } from '../parser/enhanced-il2cpp-parser';
 import { EnhancedParseResult } from '../parser/enhanced-types';
+import { ParserPool } from './parser-pool';
 
 /**
  * Processing state enumeration
@@ -198,6 +198,20 @@ export class ChunkedProcessor {
   private activeConcurrentProcesses = 0;
   private processingStartTime = 0;
   private processingMetrics: Partial<ChunkProcessingMetrics> = {};
+  private parserPool: ParserPool;
+
+  /**
+   * Create a new chunked processor
+   * @param maxConcurrency Maximum concurrency for parser pool (default: 4)
+   */
+  constructor(maxConcurrency?: number) {
+    const poolSize = maxConcurrency || this.DEFAULT_MAX_CONCURRENCY;
+    this.parserPool = new ParserPool({
+      maxPoolSize: poolSize,
+      initialPoolSize: Math.min(2, poolSize), // Start with 2 parsers or max, whichever is smaller
+      enableMetrics: true
+    });
+  }
 
   /**
    * Process content using chunked approach
@@ -281,17 +295,23 @@ export class ChunkedProcessor {
           // Extract chunk content
           const chunkContent = content.slice(chunk.startPosition, chunk.endPosition);
 
-          // Parse chunk
-          const parser = new EnhancedIL2CPPParser();
-          parser.loadContent(chunkContent);
+          // Acquire parser from pool
+          const parser = await this.parserPool.acquire();
 
-          // Check for cancellation before parsing
-          if (cancellationToken?.cancelled) {
-            throw new Error('Processing cancelled by user');
+          try {
+            parser.loadContent(chunkContent);
+
+            // Check for cancellation before parsing
+            if (cancellationToken?.cancelled) {
+              throw new Error('Processing cancelled by user');
+            }
+
+            chunk.parseResult = parser.extractAllConstructs();
+            chunk.processed = true;
+          } finally {
+            // Always release parser back to pool
+            await this.parserPool.release(parser);
           }
-
-          chunk.parseResult = parser.extractAllConstructs();
-          chunk.processed = true;
 
           const chunkEndTime = Date.now();
           chunk.processingEndTime = chunkEndTime;
@@ -752,16 +772,20 @@ export class ChunkedProcessor {
     maxConcurrency: number,
     parallelProcessingUsed: boolean
   ): ChunkProcessingMetrics {
-    const averageChunkProcessingTimeMs = chunkTimes.length > 0
-      ? chunkTimes.reduce((sum, time) => sum + time, 0) / chunkTimes.length
+    // Ensure we have valid chunk times - if all are 0, use a minimum value
+    const validChunkTimes = chunkTimes.map(time => Math.max(time, 0.1)); // Minimum 0.1ms per chunk
+    const totalChunkTime = validChunkTimes.reduce((sum, time) => sum + time, 0);
+
+    const averageChunkProcessingTimeMs = validChunkTimes.length > 0
+      ? totalChunkTime / validChunkTimes.length
       : 1; // Default to 1ms to avoid zero
 
     const chunksPerSecond = totalProcessingTimeMs > 0
       ? (chunkTimes.length / totalProcessingTimeMs) * 1000
       : chunkTimes.length; // If processing was instant, use chunk count
 
-    // Calculate parallel efficiency
-    const sequentialTime = chunkTimes.reduce((sum, time) => sum + time, 0);
+    // Calculate parallel efficiency using valid chunk times
+    const sequentialTime = totalChunkTime;
     const parallelEfficiencyScore = parallelProcessingUsed && totalProcessingTimeMs > 0
       ? Math.min(100, (sequentialTime / Math.max(totalProcessingTimeMs, 1)) * 100 / maxConcurrency)
       : 100;
@@ -800,5 +824,20 @@ export class ChunkedProcessor {
       totalContentSize,
       chunksWithErrors
     };
+  }
+
+  /**
+   * Dispose the chunked processor and clean up resources
+   * This will dispose the parser pool and release all parsers
+   */
+  public dispose(): void {
+    this.parserPool.dispose();
+  }
+
+  /**
+   * Get parser pool metrics for performance monitoring
+   */
+  public getParserPoolMetrics() {
+    return this.parserPool.getMetrics();
   }
 }

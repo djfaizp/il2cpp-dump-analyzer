@@ -80,6 +80,18 @@ export class EnhancedIL2CPPParser {
   }
 
   /**
+   * Reset the parser to a clean state for reuse
+   * Clears all loaded content and internal state
+   */
+  public reset(): void {
+    this.content = '';
+    this.lines = [];
+    this.imageMappings.clear();
+    this.parseErrors = [];
+    this.loaded = false;
+  }
+
+  /**
    * Extract all IL2CPP constructs from the loaded content
    */
   public extractAllConstructs(): EnhancedParseResult {

@@ -321,7 +321,94 @@ export function createRealDataVectorStore(context: RealDataTestContext) {
     },
 
     searchWithFilter: async (query: string, filter: Record<string, any>, k: number = 5): Promise<Document[]> => {
-      // Perform similarity search first
+      // For class searches, try exact name matching first
+      if (filter.type === 'class' && query) {
+        // Search through all documents in the vector store for exact matches
+        // We need to get all documents since MemoryVectorStore doesn't have a direct way to search metadata
+        const allDocuments = context.documents; // Use the documents from context directly
+
+        // Look for exact name matches first
+        const exactMatches = allDocuments.filter(doc => {
+          const metadata = doc.metadata;
+
+          // Apply type filter
+          if (filter.type && metadata.type !== filter.type) {
+            return false;
+          }
+
+          // Check for exact name match (case-insensitive)
+          const exactNameMatch = metadata.name &&
+            (metadata.name.toLowerCase() === query.toLowerCase() ||
+             metadata.fullName && metadata.fullName.toLowerCase() === query.toLowerCase());
+
+          if (!exactNameMatch) {
+            return false;
+          }
+
+          // Apply other filters
+          if (filter.namespace && metadata.namespace !== filter.namespace) {
+            return false;
+          }
+
+          if (filter.isMonoBehaviour && !metadata.isMonoBehaviour) {
+            return false;
+          }
+
+          return true;
+        });
+
+        // If we found exact matches, return them
+        if (exactMatches.length > 0) {
+          console.log(`Found ${exactMatches.length} exact matches for "${query}"`);
+          return exactMatches.slice(0, k);
+        }
+
+        // If no exact matches, try partial matches
+        const partialMatches = allDocuments.filter(doc => {
+          const metadata = doc.metadata;
+
+          // Apply type filter
+          if (filter.type && metadata.type !== filter.type) {
+            return false;
+          }
+
+          // Check for partial name match (case-insensitive)
+          const partialNameMatch = metadata.name &&
+            (metadata.name.toLowerCase().includes(query.toLowerCase()) ||
+             metadata.fullName && metadata.fullName.toLowerCase().includes(query.toLowerCase()));
+
+          if (!partialNameMatch) {
+            return false;
+          }
+
+          // Apply other filters
+          if (filter.namespace && metadata.namespace !== filter.namespace) {
+            return false;
+          }
+
+          if (filter.isMonoBehaviour && !metadata.isMonoBehaviour) {
+            return false;
+          }
+
+          return true;
+        });
+
+        // If we found partial matches, return them
+        if (partialMatches.length > 0) {
+          console.log(`Found ${partialMatches.length} partial matches for "${query}"`);
+          return partialMatches.slice(0, k);
+        } else {
+          console.log(`No matches found for "${query}", available classes:`,
+            allDocuments
+              .filter(doc => doc.metadata.type === 'class')
+              .slice(0, 10)
+              .map(doc => doc.metadata.name)
+              .join(', ')
+          );
+        }
+      }
+
+      // Fallback to similarity search
       const results = await context.vectorStore.similaritySearch(query, k * 2); // Get more results to filter
 
       // Apply filters

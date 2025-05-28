@@ -25,6 +25,12 @@ export type {
   ProcessingState
 } from './chunked-processor';
 
+export { ParserPool } from './parser-pool';
+export type {
+  ParserPoolOptions,
+  ParserPoolMetrics
+} from './parser-pool';
+
 export {
   BatchVectorStore,
   BatchingStrategy

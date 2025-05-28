@@ -58,6 +58,8 @@ export class IL2CPPCodeChunker {
           name: classEntity.name,
           namespace: classEntity.namespace,
           fullName: classEntity.fullName,
+          baseClass: classEntity.baseClass,
+          interfaces: classEntity.interfaces || [],
           isMonoBehaviour: classEntity.isMonoBehaviour,
           typeDefIndex: classEntity.typeDefIndex
         }
