@@ -180,8 +180,14 @@ export class IL2CPPIndexer {
       progressCallback(70, `Created ${chunks.length} chunks. Adding to vector store...`);
     }
 
-    // Add chunks to vector store
-    await this.vectorStore.addCodeChunks(chunks);
+    // Add chunks to vector store with progress reporting
+    await this.vectorStore.addCodeChunks(chunks, (progress: number, message: string) => {
+      if (progressCallback) {
+        // Map the vector store progress (0-100) to the remaining 30% of overall progress (70-100)
+        const overallProgress = 70 + Math.floor((progress / 100) * 30);
+        progressCallback(overallProgress, message);
+      }
+    });
 
     // Mark file as processed
     this.hashManager.markFileAsProcessed(filePath);

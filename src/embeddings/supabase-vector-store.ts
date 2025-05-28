@@ -120,10 +120,14 @@ export class SupabaseIL2CPPVectorStore {
   }
 
   /**
-   * Add documents to the vector store
+   * Add documents to the vector store with enhanced batch processing and progress reporting
    * @param documents Array of documents to add
+   * @param progressCallback Optional callback for progress updates
    */
-  public async addDocuments(documents: Document[]): Promise<void> {
+  public async addDocuments(
+    documents: Document[],
+    progressCallback?: (progress: number, message: string) => void
+  ): Promise<void> {
     try {
       // Generate document hashes for deduplication
       const documentHashes = documents.map(doc => this.generateDocumentHash(doc));
@@ -192,9 +196,17 @@ export class SupabaseIL2CPPVectorStore {
         console.log(`Adding all ${newDocuments.length} documents to the database.`);
       }
 
+      if (progressCallback) {
+        progressCallback(10, 'Generating embeddings for documents...');
+      }
+
       // Generate embeddings for documents
       const texts = newDocuments.map(doc => doc.pageContent);
       const embeddings = await this.embeddings.embedDocuments(texts);
+
+      if (progressCallback) {
+        progressCallback(20, `Preparing to insert ${newDocuments.length} documents...`);
+      }
 
       // Verify embedding format
       if (embeddings.length > 0) {
@@ -216,11 +228,15 @@ export class SupabaseIL2CPPVectorStore {
         embeddings.splice(0, embeddings.length, ...validatedEmbeddings as number[][]);
       }
 
-      // Process in batches to avoid overwhelming the database
-      const batchSize = 20;
+      // Enhanced batch processing with larger batch size and better error handling
+      const batchSize = this.calculateOptimalBatchSize(newDocuments.length);
       const totalBatches = Math.ceil(newDocuments.length / batchSize);
 
-      console.log(`Adding ${newDocuments.length} documents to Supabase in ${totalBatches} batches`);
+      console.log(`Adding ${newDocuments.length} documents to Supabase in ${totalBatches} batches (batch size: ${batchSize})`);
+
+      if (progressCallback) {
+        progressCallback(25, `Starting batch insertion: ${totalBatches} batches of ${batchSize} documents each`);
+      }
 
       for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
         const startIdx = batchIndex * batchSize;
@@ -229,73 +245,36 @@ export class SupabaseIL2CPPVectorStore {
         const batchEmbeddings = embeddings.slice(startIdx, endIdx);
         const batchHashes = batch.map(doc => this.generateDocumentHash(doc));
 
-        // Prepare batch data
-        const batchData = batch.map((doc, i) => ({
-          content: doc.pageContent,
-          metadata: doc.metadata,
-          embedding: batchEmbeddings[i],
-          document_hash: batchHashes[i]
-        }));
+        // Calculate progress for this batch
+        const batchProgress = 25 + Math.floor((batchIndex / totalBatches) * 70);
 
-        // Insert batch with upsert option (on conflict do nothing)
-        const { error } = await this.supabaseClient
-          .from(this.tableName)
-          .upsert(batchData, { onConflict: 'document_hash', ignoreDuplicates: true });
-
-        if (error) {
-          // If upsert fails (e.g., document_hash column doesn't exist yet), try regular insert
-          if (error.code === '42703') { // undefined_column error
-            console.log(`Column 'document_hash' doesn't exist yet. Trying regular insert...`);
-
-            // Try without document_hash for the first batch
-            if (batchIndex === 0) {
-              const simpleBatchData = batch.map((doc, i) => ({
-                content: doc.pageContent,
-                metadata: doc.metadata,
-                embedding: batchEmbeddings[i]
-              }));
-
-              const { error: insertError } = await this.supabaseClient
-                .from(this.tableName)
-                .insert(simpleBatchData);
-
-              if (insertError) {
-                console.error(`Batch ${batchIndex + 1}/${totalBatches}: Error inserting documents:`,
-                  JSON.stringify(insertError, null, 2));
-                console.error(`Error code: ${insertError.code}, message: ${insertError.message || 'No message'}`);
-                console.error(`Error details: ${insertError.details || 'No details'}`);
-              } else {
-                console.log(`Batch ${batchIndex + 1}/${totalBatches}: Successfully added ${batch.length} documents`);
-              }
-            } else {
-              // For subsequent batches, we'll include document_hash since the first batch should have created the table
-              const { error: insertError } = await this.supabaseClient
-                .from(this.tableName)
-                .insert(batchData);
-
-              if (insertError) {
-                console.error(`Batch ${batchIndex + 1}/${totalBatches}: Error inserting documents:`,
-                  JSON.stringify(insertError, null, 2));
-                console.error(`Error code: ${insertError.code}, message: ${insertError.message || 'No message'}`);
-                console.error(`Error details: ${insertError.details || 'No details'}`);
-              } else {
-                console.log(`Batch ${batchIndex + 1}/${totalBatches}: Successfully added ${batch.length} documents`);
-              }
-            }
-          } else if (error.code === '23505') { // unique_violation
-            console.warn(`Batch ${batchIndex + 1}/${totalBatches}: Duplicate key violation, some documents already exist`);
-          } else {
-            console.error(`Batch ${batchIndex + 1}/${totalBatches}: Error inserting documents:`,
-              JSON.stringify(error, null, 2));
-            console.error(`Error code: ${error.code}, message: ${error.message || 'No message'}`);
-            console.error(`Error details: ${error.details || 'No details'}`);
-          }
-        } else {
-          console.log(`Batch ${batchIndex + 1}/${totalBatches}: Successfully added ${batch.length} documents`);
+        if (progressCallback) {
+          progressCallback(
+            batchProgress,
+            `Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} documents)...`
+          );
         }
+
+        // Process batch with retry logic
+        await this.processBatchWithRetry(
+          batch,
+          batchEmbeddings,
+          batchHashes,
+          batchIndex,
+          totalBatches
+        );
       }
+
+      if (progressCallback) {
+        progressCallback(100, `Successfully inserted ${newDocuments.length} documents to vector store`);
+      }
+
+      console.log(`Successfully completed insertion of ${newDocuments.length} documents in ${totalBatches} batches`);
     } catch (error) {
       console.error('Error adding documents to Supabase:', error);
+      if (progressCallback) {
+        progressCallback(-1, `Error during insertion: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
       throw error;
     }
   }
@@ -303,14 +282,18 @@ export class SupabaseIL2CPPVectorStore {
   /**
    * Add code chunks to the vector store
    * @param chunks Array of code chunks to add
+   * @param progressCallback Optional callback for progress updates
    */
-  public async addCodeChunks(chunks: CodeChunk[]): Promise<void> {
+  public async addCodeChunks(
+    chunks: CodeChunk[],
+    progressCallback?: (progress: number, message: string) => void
+  ): Promise<void> {
     const documents = chunks.map(chunk => new Document({
       pageContent: chunk.text,
       metadata: chunk.metadata
     }));
 
-    await this.addDocuments(documents);
+    await this.addDocuments(documents, progressCallback);
   }
 
   /**
@@ -427,11 +410,160 @@ export class SupabaseIL2CPPVectorStore {
    * @returns SHA-256 hash of the document content and metadata
    */
   private generateDocumentHash(document: Document): string {
-    // Create a string representation of the document that includes content and metadata
-    const metadataStr = JSON.stringify(document.metadata || {});
+    // Create a stable string representation of metadata (sorted keys)
+    const metadataStr = this.serializeMetadataStably(document.metadata || {});
     const contentToHash = `${document.pageContent}|${metadataStr}`;
 
     // Generate SHA-256 hash
     return crypto.createHash('sha256').update(contentToHash).digest('hex');
+  }
+
+  /**
+   * Serialize metadata with stable key ordering to ensure consistent hashing
+   * @param metadata Metadata object to serialize
+   * @returns Stable JSON string representation
+   */
+  private serializeMetadataStably(metadata: Record<string, any>): string {
+    // Sort keys to ensure consistent ordering
+    const sortedKeys = Object.keys(metadata).sort();
+    const sortedMetadata: Record<string, any> = {};
+
+    sortedKeys.forEach(key => {
+      sortedMetadata[key] = metadata[key];
+    });
+
+    return JSON.stringify(sortedMetadata);
+  }
+
+  /**
+   * Calculate optimal batch size based on document count and system constraints
+   * @param documentCount Total number of documents to process
+   * @returns Optimal batch size for processing
+   */
+  private calculateOptimalBatchSize(documentCount: number): number {
+    // Base batch size for small datasets
+    if (documentCount <= 1000) {
+      return 50;
+    }
+
+    // Medium batch size for medium datasets
+    if (documentCount <= 10000) {
+      return 100;
+    }
+
+    // Large batch size for large datasets (like 300k+ chunks)
+    if (documentCount <= 100000) {
+      return 200;
+    }
+
+    // Very large batch size for massive datasets
+    return 300;
+  }
+
+  /**
+   * Process a batch with retry logic and comprehensive error handling
+   * @param batch Documents in this batch
+   * @param batchEmbeddings Embeddings for this batch
+   * @param batchHashes Hashes for this batch
+   * @param batchIndex Current batch index
+   * @param totalBatches Total number of batches
+   */
+  private async processBatchWithRetry(
+    batch: Document[],
+    batchEmbeddings: number[][],
+    batchHashes: string[],
+    batchIndex: number,
+    totalBatches: number,
+    maxRetries: number = 3
+  ): Promise<void> {
+    const batchData = batch.map((doc, i) => ({
+      content: doc.pageContent,
+      metadata: doc.metadata,
+      embedding: batchEmbeddings[i],
+      document_hash: batchHashes[i]
+    }));
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Batch operation timeout')), 30000); // 30 second timeout
+        });
+
+        const insertPromise = this.supabaseClient
+          .from(this.tableName)
+          .upsert(batchData, { onConflict: 'document_hash', ignoreDuplicates: true });
+
+        const { error } = await Promise.race([insertPromise, timeoutPromise]) as any;
+
+        if (error) {
+          await this.handleBatchError(error, batch, batchEmbeddings, batchIndex, totalBatches, attempt);
+        } else {
+          console.log(`Batch ${batchIndex + 1}/${totalBatches}: Successfully added ${batch.length} documents`);
+          return; // Success, exit retry loop
+        }
+      } catch (error) {
+        console.error(`Batch ${batchIndex + 1}/${totalBatches}, Attempt ${attempt}/${maxRetries}: Error:`, error);
+
+        if (attempt === maxRetries) {
+          throw new Error(`Failed to process batch ${batchIndex + 1} after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+
+        // Exponential backoff
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        console.log(`Retrying batch ${batchIndex + 1} in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  /**
+   * Handle batch insertion errors with fallback strategies
+   * @param error The error that occurred
+   * @param batch Documents in this batch
+   * @param batchEmbeddings Embeddings for this batch
+   * @param batchIndex Current batch index
+   * @param totalBatches Total number of batches
+   * @param attempt Current attempt number
+   */
+  private async handleBatchError(
+    error: any,
+    batch: Document[],
+    batchEmbeddings: number[][],
+    batchIndex: number,
+    totalBatches: number,
+    attempt: number
+  ): Promise<void> {
+    if (error.code === '42703') { // undefined_column error
+      console.log(`Column 'document_hash' doesn't exist yet. Trying regular insert...`);
+
+      // Try without document_hash for the first batch
+      if (batchIndex === 0) {
+        const simpleBatchData = batch.map((doc, i) => ({
+          content: doc.pageContent,
+          metadata: doc.metadata,
+          embedding: batchEmbeddings[i]
+        }));
+
+        const { error: insertError } = await this.supabaseClient
+          .from(this.tableName)
+          .insert(simpleBatchData);
+
+        if (insertError) {
+          throw insertError;
+        } else {
+          console.log(`Batch ${batchIndex + 1}/${totalBatches}: Successfully added ${batch.length} documents (without hash)`);
+        }
+      } else {
+        throw error; // For subsequent batches, this shouldn't happen
+      }
+    } else if (error.code === '23505') { // unique_violation
+      console.warn(`Batch ${batchIndex + 1}/${totalBatches}: Duplicate key violation, some documents already exist`);
+      // This is not a fatal error, continue processing
+    } else {
+      console.error(`Batch ${batchIndex + 1}/${totalBatches}, Attempt ${attempt}: Error inserting documents:`,
+        JSON.stringify(error, null, 2));
+      throw error; // Re-throw for retry logic
+    }
   }
 }

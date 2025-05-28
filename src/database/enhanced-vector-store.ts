@@ -300,10 +300,28 @@ export class EnhancedSupabaseVectorStore {
 
   /**
    * Generate document hash for deduplication
+   * Uses consistent format with other vector stores and stable metadata serialization
    */
   private generateDocumentHash(document: Document): string {
-    const content = document.pageContent + JSON.stringify(document.metadata);
-    return crypto.createHash('sha256').update(content).digest('hex');
+    // Create a stable string representation of metadata (sorted keys)
+    const metadataStr = this.serializeMetadataStably(document.metadata || {});
+    const contentToHash = `${document.pageContent}|${metadataStr}`;
+    return crypto.createHash('sha256').update(contentToHash).digest('hex');
+  }
+
+  /**
+   * Serialize metadata with stable key ordering to ensure consistent hashing
+   */
+  private serializeMetadataStably(metadata: Record<string, any>): string {
+    // Sort keys to ensure consistent ordering
+    const sortedKeys = Object.keys(metadata).sort();
+    const sortedMetadata: Record<string, any> = {};
+
+    sortedKeys.forEach(key => {
+      sortedMetadata[key] = metadata[key];
+    });
+
+    return JSON.stringify(sortedMetadata);
   }
 
   /**

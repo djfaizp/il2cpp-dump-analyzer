@@ -364,21 +364,22 @@ export class ChunkedProcessor {
             throw new Error('Processing cancelled by user');
           }
 
-          // Check for pause during wait
-          if (this.currentState === ProcessingState.PAUSED) {
+          // Check for pause during wait (state can be changed externally)
+          if ((this.currentState as ProcessingState) === ProcessingState.PAUSED) {
             break;
           }
         }
 
-        if (this.currentState === ProcessingState.PAUSED) {
+        // Check for pause before processing next chunk (state can be changed externally)
+        if ((this.currentState as ProcessingState) === ProcessingState.PAUSED) {
           break;
         }
 
         processingPromises.push(processChunk(chunk));
       }
 
-      // Wait for all chunks to complete or handle pause
-      if (this.currentState === ProcessingState.PAUSED) {
+      // Wait for all chunks to complete or handle pause (state can be changed externally)
+      if ((this.currentState as ProcessingState) === ProcessingState.PAUSED) {
         // Wait for currently running chunks to complete
         await Promise.all(processingPromises);
 
@@ -681,8 +682,8 @@ export class ChunkedProcessor {
         this.mergeUniqueArrays(combinedResult.properties, result.properties, 'name');
         this.mergeUniqueArrays(combinedResult.events, result.events, 'name');
         this.mergeUniqueArrays(combinedResult.constants, result.constants, 'name');
-        this.mergeUniqueArrays(combinedResult.operators, result.operators, 'name');
-        this.mergeUniqueArrays(combinedResult.indexers, result.indexers, 'name');
+        this.mergeUniqueArrays(combinedResult.operators, result.operators, 'symbol');
+        this.mergeUniqueArrays(combinedResult.indexers, result.indexers, 'returnType');
         this.mergeUniqueArrays(combinedResult.destructors, result.destructors, 'name');
         this.mergeUniqueArrays(combinedResult.extensionMethods, result.extensionMethods, 'name');
 

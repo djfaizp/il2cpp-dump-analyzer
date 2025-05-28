@@ -24,3 +24,16 @@ export type {
   ResumableProcessingState,
   ProcessingState
 } from './chunked-processor';
+
+export {
+  BatchVectorStore,
+  BatchingStrategy
+} from './batch-vector-store';
+export type {
+  BatchInsertOptions,
+  BatchInsertProgress,
+  BatchInsertResult,
+  BatchInsertMetrics,
+  ConnectionPoolConfig,
+  ConnectionPoolHealth
+} from './batch-vector-store';

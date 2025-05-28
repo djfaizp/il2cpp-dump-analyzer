@@ -96,8 +96,8 @@ export class IL2CPPVectorStore {
    * @returns SHA-256 hash of the document content and metadata
    */
   private generateDocumentHash(document: Document): string {
-    // Create a string representation of the document that includes content and metadata
-    const metadataStr = JSON.stringify(document.metadata || {});
+    // Create a stable string representation of metadata (sorted keys)
+    const metadataStr = this.serializeMetadataStably(document.metadata || {});
     const contentToHash = `${document.pageContent}|${metadataStr}`;
 
     // Generate SHA-256 hash
@@ -105,10 +105,31 @@ export class IL2CPPVectorStore {
   }
 
   /**
+   * Serialize metadata with stable key ordering to ensure consistent hashing
+   * @param metadata Metadata object to serialize
+   * @returns Stable JSON string representation
+   */
+  private serializeMetadataStably(metadata: Record<string, any>): string {
+    // Sort keys to ensure consistent ordering
+    const sortedKeys = Object.keys(metadata).sort();
+    const sortedMetadata: Record<string, any> = {};
+
+    sortedKeys.forEach(key => {
+      sortedMetadata[key] = metadata[key];
+    });
+
+    return JSON.stringify(sortedMetadata);
+  }
+
+  /**
    * Add documents to the vector store
    * @param documents Array of documents to add
+   * @param progressCallback Optional callback for progress updates
    */
-  public async addDocuments(documents: Document[]): Promise<void> {
+  public async addDocuments(
+    documents: Document[],
+    progressCallback?: (progress: number, message: string) => void
+  ): Promise<void> {
     // Generate hashes for all documents for deduplication
     const documentHashes = documents.map(doc => this.generateDocumentHash(doc));
 
@@ -125,8 +146,8 @@ export class IL2CPPVectorStore {
         });
       });
 
-      // Let Supabase store handle the documents
-      await this.vectorStore.addDocuments(documentsWithHashes);
+      // Let Supabase store handle the documents with progress callback
+      await (this.vectorStore as SupabaseIL2CPPVectorStore).addDocuments(documentsWithHashes, progressCallback);
     } else {
       // For in-memory store, we need to handle deduplication ourselves
       const newDocuments: Document[] = [];
@@ -161,14 +182,18 @@ export class IL2CPPVectorStore {
   /**
    * Add code chunks to the vector store
    * @param chunks Array of code chunks to add
+   * @param progressCallback Optional callback for progress updates
    */
-  public async addCodeChunks(chunks: CodeChunk[]): Promise<void> {
+  public async addCodeChunks(
+    chunks: CodeChunk[],
+    progressCallback?: (progress: number, message: string) => void
+  ): Promise<void> {
     const documents = chunks.map(chunk => new Document({
       pageContent: chunk.text,
       metadata: chunk.metadata
     }));
 
-    await this.addDocuments(documents);
+    await this.addDocuments(documents, progressCallback);
   }
 
   /**

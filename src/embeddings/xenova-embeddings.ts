@@ -9,9 +9,11 @@ let transformers: any;
 // This will be initialized in the constructor
 async function loadTransformers() {
   try {
-    transformers = await import('@xenova/transformers');
-    pipeline = transformers.pipeline;
-    env = transformers.env;
+    // Use a more robust dynamic import approach
+    const transformersModule = await import('@xenova/transformers');
+    transformers = transformersModule;
+    pipeline = transformersModule.pipeline;
+    env = transformersModule.env;
 
     // Set environment variables for Xenova with proper Docker support
     env.allowLocalModels = false;
@@ -30,7 +32,14 @@ async function loadTransformers() {
 
     return { pipeline, env, transformers };
   } catch (error) {
-    console.error('Failed to load @xenova/transformers:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Failed to load @xenova/transformers:', errorMessage);
+
+    // Provide more specific error guidance
+    if (errorMessage.includes('experimental-vm-modules')) {
+      console.error('Hint: Make sure Node.js is started with --experimental-vm-modules flag');
+    }
+
     throw error;
   }
 }
@@ -103,16 +112,50 @@ export class XenovaEmbeddings extends Embeddings {
     await this.ready;
 
     const embeddings: number[][] = [];
+    const totalTexts = texts.length;
 
-    // Process in batches to improve performance
-    const batchSize = 10;
+    // Process in smaller batches to avoid memory issues and provide progress
+    const batchSize = 5; // Reduced batch size for better memory management
+
+    console.log(`Processing ${totalTexts} texts in batches of ${batchSize}...`);
+
     for (let i = 0; i < texts.length; i += batchSize) {
       const batch = texts.slice(i, i + batchSize);
-      const batchPromises = batch.map(text => this.embedQuery(text));
-      const batchEmbeddings = await Promise.all(batchPromises);
-      embeddings.push(...batchEmbeddings);
+      const batchNumber = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(totalTexts / batchSize);
+
+      try {
+        // Process batch with individual error handling
+        const batchEmbeddings: number[][] = [];
+        for (const text of batch) {
+          try {
+            const embedding = await this.embedQuery(text);
+            batchEmbeddings.push(embedding);
+          } catch (error) {
+            console.error(`Failed to embed text (length: ${text.length}):`, error);
+            // Use a zero vector as fallback
+            batchEmbeddings.push(new Array(this.dimensions).fill(0));
+          }
+        }
+
+        embeddings.push(...batchEmbeddings);
+
+        // Progress reporting
+        if (batchNumber % 10 === 0 || batchNumber === totalBatches) {
+          const progress = Math.round((i + batch.length) / totalTexts * 100);
+          console.log(`[${progress}%] Processed ${i + batch.length}/${totalTexts} embeddings (batch ${batchNumber}/${totalBatches})`);
+        }
+
+      } catch (error) {
+        console.error(`Failed to process batch ${batchNumber}:`, error);
+        // Add zero vectors for the entire failed batch
+        for (let j = 0; j < batch.length; j++) {
+          embeddings.push(new Array(this.dimensions).fill(0));
+        }
+      }
     }
 
+    console.log(`✓ Completed embedding generation for ${totalTexts} texts`);
     return embeddings;
   }
 
