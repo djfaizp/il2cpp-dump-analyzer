@@ -37,3 +37,18 @@ export type {
   ConnectionPoolConfig,
   ConnectionPoolHealth
 } from './batch-vector-store';
+
+export { PerformanceMonitor } from './performance-monitor';
+export type {
+  PerformanceMetrics as MonitorPerformanceMetrics,
+  SystemMetrics,
+  BottleneckReport,
+  OptimizationRecommendation,
+  PerformanceThresholds,
+  PerformanceRegression,
+  MonitoringOptions,
+  CompleteBottleneckReport,
+  PerformanceDataExport,
+  MemoryUsage as MonitorMemoryUsage,
+  SystemMemoryUsage
+} from './performance-monitor';

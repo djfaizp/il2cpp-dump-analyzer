@@ -27,6 +27,9 @@ import { createAnalyzeTypeCompatibilityTool } from './analyze-type-compatibility
 import { createAssemblyTrackerTool } from './assembly-tracker';
 import { createSearchMetadataTool } from './search-metadata-tool';
 import { createQueryMetadataTool } from './query-metadata-tool';
+import { createAnalyzeAssetReferencesTool } from './analyze-asset-references-tool';
+import { createFindUnusedAssetsTool } from './find-unused-assets-tool';
+import { createAnalyzeAssetDependenciesTool } from './analyze-asset-dependencies-tool';
 
 /**
  * Tool metadata interface
@@ -398,6 +401,63 @@ export const TOOL_REGISTRY: Record<string, ToolRegistryEntry> = {
         'query_metadata(query="SELECT * FROM metadata WHERE type = \\"class\\"")',
         'query_metadata(filters={type: "class", isMonoBehaviour: true}, aggregations=["count", "group_by"], group_by_field="namespace")',
         'query_metadata(filters={}, cross_reference={from: "assembly", to: "class", relationship: "contains"})'
+      ]
+    }
+  },
+
+  analyze_asset_references: {
+    factory: createAnalyzeAssetReferencesTool,
+    metadata: {
+      name: 'analyze_asset_references',
+      category: 'analysis',
+      description: 'Analyze Unity asset references and dependencies in IL2CPP code',
+      complexity: 'medium',
+      estimatedExecutionTime: '3-10 seconds',
+      requiredParameters: [],
+      optionalParameters: ['namespace_filter', 'asset_type_filter', 'loading_method_filter', 'include_editor_assets', 'include_optimization_recommendations', 'max_results'],
+      outputFormat: 'JSON with asset references, usage patterns, dependencies, and optimization recommendations',
+      examples: [
+        'analyze_asset_references()',
+        'analyze_asset_references(asset_type_filter=["Texture", "Audio"], namespace_filter="Game.UI")',
+        'analyze_asset_references(loading_method_filter=["Resources.Load"], include_optimization_recommendations=true)'
+      ]
+    }
+  },
+
+  find_unused_assets: {
+    factory: createFindUnusedAssetsTool,
+    metadata: {
+      name: 'find_unused_assets',
+      category: 'analysis',
+      description: 'Find potentially unused Unity assets for optimization',
+      complexity: 'medium',
+      estimatedExecutionTime: '5-15 seconds',
+      requiredParameters: [],
+      optionalParameters: ['asset_type_filter', 'exclude_editor_assets', 'confidence_threshold', 'include_potential_references', 'namespace_scope', 'max_results'],
+      outputFormat: 'JSON with unused assets, confidence scores, and removal recommendations',
+      examples: [
+        'find_unused_assets()',
+        'find_unused_assets(asset_type_filter=["Texture", "Audio"], confidence_threshold=0.9)',
+        'find_unused_assets(exclude_editor_assets=true, include_potential_references=false)'
+      ]
+    }
+  },
+
+  analyze_asset_dependencies: {
+    factory: createAnalyzeAssetDependenciesTool,
+    metadata: {
+      name: 'analyze_asset_dependencies',
+      category: 'analysis',
+      description: 'Analyze Unity asset dependency graphs and relationships',
+      complexity: 'complex',
+      estimatedExecutionTime: '5-20 seconds',
+      requiredParameters: [],
+      optionalParameters: ['target_asset', 'dependency_type', 'max_depth', 'include_circular_dependencies', 'asset_type_filter', 'namespace_scope', 'max_results'],
+      outputFormat: 'JSON with dependency graph, circular dependencies, and optimization recommendations',
+      examples: [
+        'analyze_asset_dependencies()',
+        'analyze_asset_dependencies(target_asset="player_texture", dependency_type="both", max_depth=3)',
+        'analyze_asset_dependencies(include_circular_dependencies=true, asset_type_filter=["Texture", "Material"])'
       ]
     }
   }
