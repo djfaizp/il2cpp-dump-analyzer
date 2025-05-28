@@ -31,6 +31,13 @@ export type {
   ParserPoolMetrics
 } from './parser-pool';
 
+export { AsyncSemaphore } from './async-semaphore';
+export type {
+  AsyncSemaphoreOptions,
+  SemaphoreMetrics,
+  CancellationToken as SemaphoreCancellationToken
+} from './async-semaphore';
+
 export {
   BatchVectorStore,
   BatchingStrategy
