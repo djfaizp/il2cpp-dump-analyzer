@@ -91,6 +91,35 @@ A cutting-edge **Agentic Retrieval-Augmented Generation (RAG)** system for analy
    ```
 
 ## Usage
+### Environment Variables
+
+All available environment variables including agentic configuration:
+
+```env
+# Core Configuration
+NODE_ENV=production|development|test
+DUMP_FILE_PATH=./dump.cs
+EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
+LOG_LEVEL=error|warn|info|debug
+
+# Supabase Configuration
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_KEY=your_supabase_anon_or_service_key
+SUPABASE_TABLE_NAME=il2cpp_documents
+
+# MCP Server Configuration
+MCP_SERVER_PORT=3000
+MCP_SERVER_HOST=0.0.0.0
+
+# Agentic Configuration
+AGENTIC_MODE=true                    # Enable intelligent tool orchestration
+CONTEXT_CACHE_SIZE=1000             # Maximum cached contexts
+TOOL_CHAIN_MAX_DEPTH=5              # Maximum tool chaining depth
+INTELLIGENT_CACHING=true            # Enable smart result caching
+CONTEXT_PERSISTENCE=true            # Enable context persistence across calls
+PERFORMANCE_OPTIMIZATION=true      # Enable performance learning and optimization
+ADAPTIVE_BATCHING=true              # Enable adaptive request batching
+```
 
 ### Quick Start
 
@@ -463,35 +492,6 @@ npm run test -- --testPathPattern=mcp-tool-selector
 npm run test -- --testPathPattern=mcp-context-manager
 ```
 
-### Environment Variables
-
-All available environment variables including agentic configuration:
-
-```env
-# Core Configuration
-NODE_ENV=production|development|test
-DUMP_FILE_PATH=./dump.cs
-EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
-LOG_LEVEL=error|warn|info|debug
-
-# Supabase Configuration
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_KEY=your_supabase_anon_or_service_key
-SUPABASE_TABLE_NAME=il2cpp_documents
-
-# MCP Server Configuration
-MCP_SERVER_PORT=3000
-MCP_SERVER_HOST=0.0.0.0
-
-# Agentic Configuration
-AGENTIC_MODE=true                    # Enable intelligent tool orchestration
-CONTEXT_CACHE_SIZE=1000             # Maximum cached contexts
-TOOL_CHAIN_MAX_DEPTH=5              # Maximum tool chaining depth
-INTELLIGENT_CACHING=true            # Enable smart result caching
-CONTEXT_PERSISTENCE=true            # Enable context persistence across calls
-PERFORMANCE_OPTIMIZATION=true      # Enable performance learning and optimization
-ADAPTIVE_BATCHING=true              # Enable adaptive request batching
-```
 
 ## Project Structure
 
